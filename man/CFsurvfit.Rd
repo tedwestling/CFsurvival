@@ -191,6 +191,3 @@ Ishwaran, H., Kogalur, U. B., Blackstone, E. H., & Lauer, M. S. (2008). Random s
 
 van der Laan, M. J., Polley, E. C., & Hubbard, A. E. (2007). Super learner. \emph{Statistical Applications in Genetics and Molecular Biology}, 6(1).
 }
-\seealso{
-[rfrsc()], [SuperLearner()]
-}

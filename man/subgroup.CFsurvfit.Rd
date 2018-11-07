@@ -31,7 +31,10 @@ subgroup.CFsurvfit(fit, subgroup.inds, conf.band = TRUE,
 \code{subgroup.CFsurvfit} returns a list with the same structure as the output from \code{\link{CFsurvfit}} -- see the documentation of that function for additional details.
 }
 \description{
-Compute subgroup counterfactual survival functions
+This function estimates subgroup-specific counterfactual survival functions and contrasts from right-censored data subject to potential confounding using the output from the \code{\link{CFsurvfit}} function.
+}
+\details{
+See the documentation for \code{\link{CFsurvfit}} for an explanation of counterfactual survival functions and how they are estimated.
 }
 \examples{
 # Define parameters

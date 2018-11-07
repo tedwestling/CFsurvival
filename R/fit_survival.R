@@ -201,8 +201,8 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
     result <- list(fit.times=fit.times, fit.treat=fit.treat, surv.df=surv.df)
     if(verbose) message("Computing counterfactual survivals...")
     if(1 %in% fit.treat) {
-        surv.1 <- .get.survival(Y=time, Delta=event, A=treat, times=fit.times, S.hats=S.hats.1, G.hats=G.hats.1, g.hats=g.hats)
-        surv.df.1 <- data.frame(time=c(0,fit.times), trt=1, surv=c(1, surv.1$surv))
+        surv.1 <- .get.survival(Y=time, Delta=event, A=treat, times=fit.times, S.hats=S.hats.1, G.hats=G.hats.1, g.hats=g.hats, isotonize=FALSE)
+        surv.df.1 <- data.frame(time=c(0,fit.times), trt=1, surv=c(1, surv.1$surv.iso))
         result$IF.vals.1 <- surv.1$IF.vals
 
         c.int <- .surv.confints(fit.times, surv.1$surv, surv.1$IF.vals, conf.band = conf.band, conf.level=conf.level)
@@ -221,7 +221,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
 
     if(0 %in% fit.treat) {
         surv.0 <- .get.survival(Y=time, Delta=event, A=1-treat, times=fit.times, S.hats=S.hats.0, G.hats=G.hats.0, g.hats=1-g.hats)
-        surv.df.0 <- data.frame(time=c(0,fit.times), trt=0, surv=c(1, surv.0$surv))
+        surv.df.0 <- data.frame(time=c(0,fit.times), trt=0, surv=c(1, surv.0$surv.iso))
         result$IF.vals.0 <- surv.0$IF.vals
 
         c.int <- .surv.confints(fit.times, surv.0$surv, surv.0$IF.vals, conf.band = conf.band, conf.level=conf.level)
@@ -322,7 +322,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
 
 
 
-.get.survival <- function(Y, Delta, A, times, S.hats, G.hats, g.hats) {
+.get.survival <- function(Y, Delta, A, times, S.hats, G.hats, g.hats, isotonize=TRUE) {
     times <- times[times > 0]
     n <- length(Y)
     ord <- order(times)
@@ -349,7 +349,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
         IF.vals[,k] <- if.func - surv[k]
     }
     res <- list(times=times, surv=pmin(1,pmax(0,surv)), IF.vals=IF.vals)
-    res$surv <- 1 - as.stepfun(isoreg(c(0,times[!is.na(res$surv)]), c(0,1-res$surv[!is.na(res$surv)])))(times)
+    if(isotonize) res$surv.iso <- 1 - isoreg(times, 1-res$surv)$yf
 
     return(res)
 }
@@ -357,7 +357,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
 .surv.confints <- function(times, est, IF.vals, isotonize=TRUE, conf.band=TRUE, conf.level=.95) {
     n <- nrow(IF.vals)
     res <- NULL
-    res$se <- colMeans(IF.vals^2) / sqrt(n)
+    res$se <- sqrt(colMeans(IF.vals^2)) / sqrt(n)
     res$se[res$se == 0] <- NA
     quant <- qnorm(1-(1-conf.level)/2)
 
@@ -367,8 +367,8 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
 
     # Isotonized intervals and bands
     if(isotonize) {
-        res$ptwise.lower <- 1 - as.stepfun(isoreg(c(0,times[!is.na(res$ptwise.lower)]), c(0,1-res$ptwise.lower[!is.na(res$ptwise.lower)])))(times)
-        res$ptwise.upper <- 1 - as.stepfun(isoreg(c(0,times[!is.na(res$ptwise.upper)]), c(0,1-res$ptwise.upper[!is.na(res$ptwise.upper)])))(times)
+        res$ptwise.lower <- 1 - isoreg(times[!is.na(res$ptwise.lower)], 1-res$ptwise.lower[!is.na(res$ptwise.lower)])$yf
+        res$ptwise.upper <- 1 - isoreg(times[!is.na(res$ptwise.upper)], 1-res$ptwise.upper[!is.na(res$ptwise.upper)])$yf
     }
     out <- NULL
     if(conf.band) {
@@ -379,8 +379,8 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
         res$unif.lower <- pmax(est - unif.quant * res$se, 0)
         res$unif.upper <- pmin(est + unif.quant * res$se, 1)
         if(isotonize) {
-            res$unif.lower <- 1 - as.stepfun(isoreg(c(0,times[!is.na(res$unif.lower)]), c(0,1-res$unif.lower[!is.na(res$unif.lower)])))(times)
-            res$unif.upper <- 1 - as.stepfun(isoreg(c(0,times[!is.na(res$unif.upper)]), c(0,1-res$unif.upper[!is.na(res$unif.upper)])))(times)
+            res$unif.lower <- 1 - isoreg(times[!is.na(res$unif.lower)], 1-res$unif.lower[!is.na(res$unif.lower)])$yf
+            res$unif.upper <- 1 - isoreg(times[!is.na(res$unif.upper)], 1-res$unif.upper[!is.na(res$unif.upper)])$yf
         }
     }
     out$res <- res
