@@ -351,7 +351,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
     res <- list(times=times, surv=pmin(1,pmax(0,surv)), IF.vals=IF.vals)
     if(isotonize) {
         res$surv.iso <- NA
-        res$surv.iso[!is.na(res$surv)] <- 1 - isoreg(times, 1-res$surv[!is.na(res$surv)])$yf
+        res$surv.iso[!is.na(res$surv)] <- 1 - isoreg(res$times[!is.na(res$surv)], 1-res$surv[!is.na(res$surv)])$yf
     }
 
     return(res)
