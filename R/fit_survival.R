@@ -370,8 +370,10 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
 
     # Isotonized intervals and bands
     if(isotonize) {
-        res$ptwise.lower <- 1 - isoreg(times[!is.na(res$ptwise.lower)], 1-res$ptwise.lower[!is.na(res$ptwise.lower)])$yf
-        res$ptwise.upper <- 1 - isoreg(times[!is.na(res$ptwise.upper)], 1-res$ptwise.upper[!is.na(res$ptwise.upper)])$yf
+        res$ptwise.lower <- NA
+        res$ptwise.lower[!is.na(res$ptwise.lower)] <- 1 - isoreg(times[!is.na(res$ptwise.lower)], 1-res$ptwise.lower[!is.na(res$ptwise.lower)])$yf
+        res$ptwise.upper <- NA
+        res$ptwise.upper[!is.na(res$ptwise.upper)] <- 1 - isoreg(times[!is.na(res$ptwise.upper)], 1-res$ptwise.upper[!is.na(res$ptwise.upper)])$yf
     }
     out <- NULL
     if(conf.band) {
