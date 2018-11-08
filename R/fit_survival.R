@@ -160,6 +160,9 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
         warning("fit.times > max(time) removed.")
     }
 
+    surv.df <- data.frame()
+    result <- list(fit.times=fit.times, fit.treat=fit.treat, surv.df=surv.df)
+
     #### ESTIMATE PROPENSITY ####
 
     if(is.null(g.hats)) {
@@ -167,6 +170,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
         if(is.null(treat.subset)) treat.subset <- 1:ncol(confounders)
         g.fit <- .estimate.propensity(A=treat, W.propensity=confounders[,treat.subset], method=propensity.method, SL.library=SL.library)
         g.hats <- g.fit$g.hats
+        result <- c(result, g.fit)
     }
 
     #### ESTIMATE EVENT SURVIVALS ####
@@ -180,6 +184,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
         if(0 %in% fit.treat & is.null(S.hats.0)) {
             S.hats.0 <- S.hats$S.hats.0
         }
+        result$cond.surv.method <- cond.surv.method
     }
 
     #### ESTIMATE CENSORING SURVIVALS ####
@@ -197,8 +202,6 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
 
     #### ESTIMATE CF SURVIVALS ####
 
-    surv.df <- data.frame()
-    result <- list(fit.times=fit.times, fit.treat=fit.treat, surv.df=surv.df)
     if(verbose) message("Computing counterfactual survivals...")
     if(1 %in% fit.treat) {
         surv.1 <- .get.survival(Y=time, Delta=event, A=treat, times=fit.times, S.hats=S.hats.1, G.hats=G.hats.1, g.hats=g.hats)
@@ -361,6 +364,12 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
     n <- nrow(IF.vals)
     res <- NULL
     res$se <- sqrt(colMeans(IF.vals^2)) / sqrt(n)
+    # # For SEs that are NA
+    # for(j in which(is.na(res$se) | res$se == 0)) {
+    #     if(any(!is.na(res$se[(j+1):nrow(se)]))) {
+    #         res$se[j] <- res$se[min(which(!is.na(res$se[(j+1):nrow(se)])))]
+    #     }
+    # }
     res$se[res$se == 0] <- NA
     quant <- qnorm(1-(1-conf.level)/2)
 
@@ -370,9 +379,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
 
     # Isotonized intervals and bands
     if(isotonize) {
-        res$ptwise.lower <- NA
         res$ptwise.lower[!is.na(res$ptwise.lower)] <- 1 - isoreg(times[!is.na(res$ptwise.lower)], 1-res$ptwise.lower[!is.na(res$ptwise.lower)])$yf
-        res$ptwise.upper <- NA
         res$ptwise.upper[!is.na(res$ptwise.upper)] <- 1 - isoreg(times[!is.na(res$ptwise.upper)], 1-res$ptwise.upper[!is.na(res$ptwise.upper)])$yf
     }
     out <- NULL
@@ -384,8 +391,8 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
         res$unif.lower <- pmax(est - unif.quant * res$se, 0)
         res$unif.upper <- pmin(est + unif.quant * res$se, 1)
         if(isotonize) {
-            res$unif.lower <- 1 - isoreg(times[!is.na(res$unif.lower)], 1-res$unif.lower[!is.na(res$unif.lower)])$yf
-            res$unif.upper <- 1 - isoreg(times[!is.na(res$unif.upper)], 1-res$unif.upper[!is.na(res$unif.upper)])$yf
+            res$unif.lower[!is.na(res$unif.lower)] <- 1 - isoreg(times[!is.na(res$unif.lower)], 1-res$unif.lower[!is.na(res$unif.lower)])$yf
+            res$unif.upper[!is.na(res$unif.upper)] <- 1 - isoreg(times[!is.na(res$unif.upper)], 1-res$unif.upper[!is.na(res$unif.upper)])$yf
         }
     }
     out$res <- res

@@ -36,9 +36,8 @@
                 approx(c(0,fit$time.interest), c(0,survs[i,]), method='linear', xout = fit.times)$y
             }))
         }
-
-
     }
+    ret$cond.surv.method <- method
     return(ret)
 }
 
@@ -56,5 +55,6 @@
         ret$g.hats <- sl.fit$SL.predict
         ret$SL.coef <- sl.fit$coef
     }
+    ret$propensity.method <- method
     return(ret)
 }

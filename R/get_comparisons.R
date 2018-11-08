@@ -128,7 +128,7 @@
     df$ptwise.upper <- df$nnt + quant * df$se
 
     if(conf.band) {
-        unif.info <- .estimate.uniform.quantile(IF.nnt[,!is.na(se.nnt)], conf.level)
+        unif.info <- .estimate.uniform.quantile(IF.nnt[,!is.na(se.nnt) & !is.nan(se.nnt) & !is.infinite(se.nnt)], conf.level)
         unif.quant <- unif.info$quantile
         df$unif.lower <- df$nnt - unif.quant * df$se
         df$unif.upper <- df$nnt + unif.quant * df$se
