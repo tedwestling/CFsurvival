@@ -191,6 +191,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
 
     if((1 %in% fit.treat & is.null(G.hats.1)) | (0 %in% fit.treat & is.null(G.hats.0))) {
         if(verbose) message("Estimating conditional censoring survivals...")
+        if(is.null(cens.subset)) cens.subset <- 1:ncol(confounders)
         G.hats <- .estimate.conditional.survival(Y=time, Delta=1-event, A=treat, fit.times=fit.times, fit.treat=fit.treat, method=cond.surv.method, W=confounders[,cens.subset], ...)
         if(1 %in% fit.treat & is.null(G.hats.1)) {
             G.hats.1 <- G.hats$S.hats.1
