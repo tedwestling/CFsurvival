@@ -1,23 +1,51 @@
 .surv.difference <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, conf.level=.95) {
+    logit <- function(x) log(x / (1-x))
+    logit.prime <- function(x) 1/(x * (1-x))
+    expit <- function(x) 1/(1 + exp(-x))
+
     n <- nrow(IF.vals.0)
-    quant <- qnorm(1-(1-conf.level)/2)
+    quant <- qt(1-(1-conf.level)/2, n - 1)#qnorm(1-(1-conf.level)/2)
     df <- data.frame(time=c(0,fit.times), surv.diff=c(0,surv.1-surv.0))
 
+    diff <- surv.1 - surv.0
     IF.diff <- IF.vals.1 - IF.vals.0
     se.diff <- sqrt(colMeans(IF.diff^2))
     se.diff[se.diff == 0] <- NA
 
+    in.bounds <- -1 < diff & diff < 1
+    logit.diff <- logit((diff + 1)/2)
+    IF.diff.logit <- IF.diff
+    for(j in 1:length(diff)) IF.diff.logit[,j] <- IF.diff[,j] * logit.prime((diff[j] + 1) / 2) / 2
+
+    se.diff.logit <- sqrt(colMeans(IF.diff.logit^2))
+    se.diff.logit[se.diff.logit == 0] <- NA
+
     df$se <- c(0,se.diff)/sqrt(n)
-    df$ptwise.lower <- df$surv.diff - quant * df$se
-    df$ptwise.upper <- df$surv.diff + quant * df$se
-    df$ptwise.pval <- c(1,pchisq((df$surv.diff[-1]/(df$se[-1]))^2, df=1, lower.tail = FALSE))
+    df$se.logit <- c(0, se.diff.logit / sqrt(n))
+    ll <- 2 * expit(logit.diff - quant * se.diff.logit / sqrt(n)) - 1
+    ul <- 2 * expit(logit.diff + quant * se.diff.logit / sqrt(n)) - 1
+    ll[!in.bounds] <- pmin(approx(fit.times[in.bounds], ll[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
+    ul[!in.bounds] <- pmax(approx(fit.times[in.bounds], ul[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
+    df$ptwise.lower <- c(0, ll)#pmax(est - quant * res$se, 0)
+    df$ptwise.upper <- c(0, ul) #pmin(est + quant * res$se, 1)
+
+    # df$ptwise.lower <- df$surv.diff - quant * df$se
+    # df$ptwise.upper <- df$surv.diff + quant * df$se
+    df$ptwise.pval <- c(1, pchisq(( logit.diff / (se.diff.logit / sqrt(n)) )^2, df=1, lower.tail = FALSE))
+
 
     if(conf.band) {
-        unif.info <- .estimate.uniform.quantile(IF.diff[,!is.na(se.diff)], conf.level)
+        unif.info <- .estimate.uniform.quantile(IF.diff.logit[,!is.na(se.diff.logit)], conf.level)
         unif.quant <- unif.info$quantile
-        df$unif.lower <- df$surv.diff - unif.quant * df$se
-        df$unif.upper <- df$surv.diff + unif.quant * df$se
-        df$unif.pval <- c(1, pchisq((df$rd[-1]/( unif.quant * df$se[-1]))^2, df=1, lower.tail = FALSE))
+
+        ll <- 2 * expit(logit.diff - unif.quant * se.diff.logit / sqrt(n)) - 1
+        ul <- 2 * expit(logit.diff + unif.quant * se.diff.logit / sqrt(n)) - 1
+        ll[!in.bounds] <- pmin(approx(fit.times[in.bounds], ll[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
+        ul[!in.bounds] <- pmax(approx(fit.times[in.bounds], ul[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
+        df$unif.lower <- c(0, ll)#pmax(est - quant * res$se, 0)
+        df$unif.upper <- c(0, ul) #pmin(est + quant * res$se, 1)
+
+        #df$unif.pval <- c(1, pchisq((diff/( unif.quant * se.logit))^2, df=1, lower.tail = FALSE))
     }
 
     res <- list(surv.diff.df=df)
@@ -25,13 +53,12 @@
         res$surv.diff.unif.quant <- unif.quant
         res$surv.diff.sim.maxes <- unif.info$sim.maxes
     }
-
     return(res)
 }
 
 .surv.ratio <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, conf.level=.95) {
     n <- nrow(IF.vals.0)
-    quant <- qnorm(1-(1-conf.level)/2)
+    quant <- qt(1-(1-conf.level)/2, df = n - 1)
     df <- data.frame(time=c(0,fit.times), log.surv.ratio=c(0,log(surv.1) - log(surv.0)), surv.ratio=c(1,surv.1 / surv.0))
 
     IF.log.ratio <- IF.vals.1 / matrix(surv.1, nrow=nrow(IF.vals.1), ncol=ncol(IF.vals.1), byrow=TRUE) -
@@ -54,7 +81,7 @@
         df$unif.upper.log <- df$log.surv.ratio + log.unif.quant * df$se.log.ratio
         df$unif.lower <- exp(df$unif.lower.log)
         df$unif.upper <- exp(df$unif.upper)
-        df$unif.pval <- c(1, pchisq((df$log.surv.ratio[-1]/( log.unif.quant * df$se.log.ratio[-1]))^2, df=1, lower.tail = FALSE))
+      #  df$unif.pval <- c(1, pchisq((df$log.surv.ratio[-1]/( log.unif.quant * df$se.log.ratio[-1]))^2, df=1, lower.tail = FALSE))
     }
 
     res <- list(surv.ratio.df=df)
@@ -68,7 +95,7 @@
 
 .risk.ratio <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, conf.level=.95) {
     n <- nrow(IF.vals.0)
-    quant <- qnorm(1-(1-conf.level)/2)
+    quant <- qt(1-(1-conf.level)/2, df = n - 1)
     risk.0 <- 1-surv.0
     risk.1 <- 1-surv.1
     IF.vals.0 <- -IF.vals.0
@@ -95,7 +122,7 @@
         df$unif.upper.log <- df$log.risk.ratio + log.unif.quant * df$se.log.ratio
         df$unif.lower <- exp(df$unif.lower.log)
         df$unif.upper <- exp(df$unif.upper)
-        df$unif.pval <- c(1, pchisq((df$log.risk.ratio[-1]/( log.unif.quant * df$se.log.ratio[-1]))^2, df=1, lower.tail = FALSE))
+       # df$unif.pval <- c(1, pchisq((df$log.risk.ratio[-1]/( log.unif.quant * df$se.log.ratio[-1]))^2, df=1, lower.tail = FALSE))
     }
 
     res <- list(risk.ratio.df=df)
@@ -109,7 +136,7 @@
 
 .nnt <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, conf.level=.95) {
     n <- nrow(IF.vals.0)
-    quant <- qnorm(1-(1-conf.level)/2)
+    quant <- qt(1-(1-conf.level)/2, df = n - 1)
     df <- data.frame(time=c(0,fit.times), nnt=c(NA,1/(surv.1-surv.0)))#, log.nnt=c(NA, -log(surv.1-surv.0)))
 
     # IF.log.nnt <- -(IF.vals.1 - IF.vals.0)/matrix(surv.1 - surv.0, nrow=nrow(IF.vals.1), ncol=ncol(IF.vals.1), byrow=TRUE)

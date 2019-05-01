@@ -83,11 +83,11 @@
 #' fit$surv.df$true.surv <- c(S1(c(0, fit$fit.times)), S0(c(0, fit$fit.times)))
 #' ggplot(fit$surv.df) +
 #'     geom_line(aes(time, true.surv, group=trt), color='black') +
-#'     geom_line(aes(time, surv, color=as.factor(trt), group=trt)) +
-#'     geom_line(aes(time, ptwise.lower, color=as.factor(trt), group=trt), linetype=2) +
-#'     geom_line(aes(time, ptwise.upper, color=as.factor(trt), group=trt), linetype=2) +
-#'     geom_line(aes(time, unif.lower, color=as.factor(trt), group=trt), linetype=3) +
-#'     geom_line(aes(time, unif.upper, color=as.factor(trt), group=trt), linetype=3) +
+#'     geom_step(aes(time, surv, color=as.factor(trt), group=trt)) +
+#'     geom_step(aes(time, ptwise.lower, color=as.factor(trt), group=trt), linetype=2) +
+#'     geom_step(aes(time, ptwise.upper, color=as.factor(trt), group=trt), linetype=2) +
+#'     geom_step(aes(time, unif.lower, color=as.factor(trt), group=trt), linetype=3) +
+#'     geom_step(aes(time, unif.upper, color=as.factor(trt), group=trt), linetype=3) +
 #'     scale_color_discrete("Treatment") +
 #'     xlab("Time") +
 #'     ylab("Survival") +
@@ -104,7 +104,7 @@
 #'     geom_line(aes(time, unif.upper), linetype=3) +
 #'     xlab("Time") +
 #'     ylab("Survival difference (treatment - control)") +
-#'     coord_cartesian(xlim=c(0,15), ylim=c(0,1))
+#'     coord_cartesian(xlim=c(0,15))
 #'
 # Survival ratio
 #' fit$surv.ratio.df$true.surv.ratio <- c(S1(fit$surv.ratio.df$time) / S0(fit$surv.ratio.df$time))
@@ -117,7 +117,8 @@
 #'     geom_line(aes(time, unif.upper), linetype=3) +
 #'     xlab("Time") +
 #'     ylab("Survival ratio (treatment / control)") +
-#'     coord_cartesian(xlim=c(0,15), ylim=c(0,10))
+#'     geom_hline(yintercept=0, color='blue', linetype=4) +
+#'     coord_cartesian(xlim=c(0,15), ylim=c(1,10))
 #'
 #' # Risk ratio
 #' fit$risk.ratio.df$true.risk.ratio <- (1 - S1(fit$risk.ratio.df$time)) / (1 - S0(fit$risk.ratio.df$time))
@@ -147,9 +148,11 @@
 
 
 
-CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & time < max(time)])), fit.treat=c(0,1), cond.surv.method=c("randomForestSRC", "coxph", NULL), confounders=NULL, cens.subset=NULL, propensity.method=c("SuperLearner", "glm", NULL), treat.subset=NULL, SL.library=NULL, S.hats.0=NULL, G.hats.0=NULL, S.hats.1=NULL, G.hats.1=NULL, g.hats=NULL, conf.band=TRUE, conf.level=.95, surv.diffs=TRUE, surv.ratios=TRUE, risk.ratios=FALSE, nnt=FALSE, verbose=FALSE, ...) {
+CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & time < max(time)])), fit.treat=c(0,1), cond.surv.method=c("randomForestSRC", "coxph", NULL), confounders=NULL, cens.subset=NULL, propensity.method=c("glm", "SuperLearner", NULL), treat.subset=NULL, SL.library=NULL, S.hats.0=NULL, G.hats.0=NULL, S.hats.1=NULL, G.hats.1=NULL, g.hats=NULL, conf.band=TRUE, conf.level=.95, surv.diffs=TRUE, surv.ratios=TRUE, risk.ratios=FALSE, nnt=FALSE, verbose=FALSE, ...) {
     .args <- mget(names(formals()),sys.frame(sys.nframe()))
     do.call(.check.input, .args)
+
+    propensity.method <- propensity.method[1]
 
     if(any(fit.times <= 0)) {
         fit.times <- fit.times[fit.times > 0]
@@ -159,6 +162,8 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
         fit.times <- fit.times[fit.times <= max(time)]
         warning("fit.times > max(time) removed.")
     }
+    confounders <- as.matrix(confounders)
+    colnames(confounders) <- paste0("V", 1:ncol(confounders))
 
     surv.df <- data.frame()
     result <- list(fit.times=fit.times, fit.treat=fit.treat, surv.df=surv.df)
@@ -321,7 +326,12 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
     if((surv.diffs | surv.ratios | risk.ratios | nnt ) & !identical(sort(fit.treat), c(0,1))) {
         warning("surv.diffs, surv.ratios, or risk ratios specified but both treatment regimens not requested -- contrasts will not be provided. Re-run with fit.treat = c(0,1) for survival contrasts.")
     }
-
+    if(any(is.na(time) | is.na(event))) {
+        stop("Missing time or event detected; missing data not allowed.")
+    }
+    if(any(is.na(confounders) | is.na(treat))) {
+        warning("Missing confounders or exposures detected; missing data not allowed.")
+    }
 }
 
 
@@ -362,9 +372,18 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
 }
 
 .surv.confints <- function(times, est, IF.vals, isotonize=TRUE, conf.band=TRUE, conf.level=.95) {
+    logit <- function(x) log(x / (1-x))
+    logit.prime <- function(x) 1/(x * (1-x))
+    expit <- function(x) 1/(1 + exp(-x))
+
     n <- nrow(IF.vals)
+    in.bounds <- est > 0 & est < 1
+    IF.vals.logit <- IF.vals
+    for(j in 1:length(est)) IF.vals.logit[,j] <- IF.vals[,j] * logit.prime(est[j])
+
     res <- NULL
     res$se <- sqrt(colMeans(IF.vals^2)) / sqrt(n)
+    res$se.logit <- sqrt(colMeans(IF.vals.logit^2)) / sqrt(n)
     # # For SEs that are NA
     # for(j in which(is.na(res$se) | res$se == 0)) {
     #     if(any(!is.na(res$se[(j+1):nrow(se)]))) {
@@ -372,11 +391,15 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
     #     }
     # }
     res$se[res$se == 0] <- NA
-    quant <- qnorm(1-(1-conf.level)/2)
+    res$se.logit[is.infinite(res$se.logit)] <- NA
+    quant <- qt(1-(1-conf.level)/2, n - 1) #qnorm(1-(1-conf.level)/2)
 
     # Raw intervals and bands based on un-isotonized survival ests
-    res$ptwise.lower <- pmax(est - quant * res$se, 0)
-    res$ptwise.upper <- pmin(est + quant * res$se, 1)
+    res$ptwise.lower <- expit(logit(est) - quant * res$se.logit) #pmax(est - quant * res$se, 0)
+    res$ptwise.upper <- expit(logit(est) + quant * res$se.logit) #pmin(est + quant * res$se, 1)
+    res$ptwise.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$ptwise.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+    res$ptwise.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$ptwise.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+
 
     # Isotonized intervals and bands
     if(isotonize) {
@@ -385,12 +408,14 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
     }
     out <- NULL
     if(conf.band) {
-        unif.vals <- .estimate.uniform.quantile(IF.vals[,!is.na(res$se)], conf.level)
+        unif.vals <- .estimate.uniform.quantile(IF.vals.logit[,!is.na(res$se.logit)], conf.level)
         unif.quant <- unif.vals$quantile
         out$sim.maxes <- unif.vals$maxes
         out$unif.quant <- unif.quant
-        res$unif.lower <- pmax(est - unif.quant * res$se, 0)
-        res$unif.upper <- pmin(est + unif.quant * res$se, 1)
+        res$unif.lower <- expit(logit(est) - unif.quant * res$se.logit) #pmax(est - unif.quant * res$se, 0)
+        res$unif.upper <- expit(logit(est) + unif.quant * res$se.logit) # pmin(est + unif.quant * res$se, 1)
+        res$unif.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+        res$unif.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
         if(isotonize) {
             res$unif.lower[!is.na(res$unif.lower)] <- 1 - isoreg(times[!is.na(res$unif.lower)], 1-res$unif.lower[!is.na(res$unif.lower)])$yf
             res$unif.upper[!is.na(res$unif.upper)] <- 1 - isoreg(times[!is.na(res$unif.upper)], 1-res$unif.upper[!is.na(res$unif.upper)])$yf
@@ -403,7 +428,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
 .estimate.uniform.quantile <- function(IF.vals, conf.level=.95) {
     n <- nrow(IF.vals)
     IF.vals <- scale(IF.vals)
-    maxes <- replicate(1e4, max(abs(rbind(rnorm(n)/sqrt(n)) %*% IF.vals)))
+    maxes <- replicate(1e4, max(abs(rbind(rt(n, df = n - 1)/sqrt(n)) %*% IF.vals)))
     return(list(quantile=quantile(maxes, 1 - (1 - conf.level)/2), maxes=maxes))
 }
 
