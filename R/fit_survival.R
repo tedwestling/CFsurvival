@@ -1,3 +1,8 @@
+# To do
+# Use surv.SuperLearner for nuisance estimation
+# Cross-fitting
+# Update CIs & CBs
+
 #' Estimate counterfactual survival functions
 #'
 #' This function estimates counterfactual survival functions and contrasts from right-censored data subject to potential confounding.
@@ -6,30 +11,17 @@
 #'
 #'  \code{CFsurvival} by default returns 95\% pointwise confidence intervals and 95\% uniform confidence bands, both of which are based on the influence function of the estimator. Contrasts of the counterfactual survival under treatment and control can also be obtained, including the survival difference, survival ratio, risk ratio, and number needed to treat. Pointwise confidence intervals and uniform confidence bands for these contrasts will also be computed.
 #'
-#' @param time n x 1 numeric vector of observed right-censored follow-up times; i.e. the minimum of the event and censoring times.
-#' @param event n x 1 numeric vector of status indicators of whether an event was observed.
-#' @param treat n x 1 numeric vector of observed binary treatment/exposure group; either 0 or 1.
-#' @param fit.times k x 1 numeric vector of time grid at which the counterfactual survival function is desired. Only values > 0 are allowed. Defauls to all unique positive values in \code{time}.
-#' @param fit.treat Optional subset of \code{c(0,1)} for which the counterfactual survival curves are desired. For example, if \code{fit.treat=c(0,1)} (default behavior) then both placebo and treatment curves will be estimated, and if \code{fit.treat=0} then only the placebo curve will be estimated.
-#' @param cond.surv.method The method that should be used to estimate the conditional survival and censoring probabilities. One of \code{randomForestSRC}, \code{coxph}, or \code{NULL}. If \code{randomForestSRC} is specified, the \code{randomForestSRC} package will be used to estimate random survival forests, and must be installed. If \code{coxph} is specified, the \code{coxph} function from the \code{survival} package will be used. If \code{cond.surv.method = NULL}, then \code{S.hats.0}, \code{G.hats.0}, and/or \code{S.hats.1} and \code{G.hats.1} must be specified.
-#' @param confounders n x p numeric matrix of potential confounders to use when estimating the conditional survival probabilities. Missing values are not allowed
-#' @param cens.subset Optional numeric vector of the columns of \code{confounders} that should be used to estimate the conditional censoring probabilities. Defaults to using all availalbe confounders to estimate the censoring probabilities.
-#' @param propensity.method The method that should be used to estimate the propensity (i.e. probability of treatment) model. One of \code{glm}, \code{SuperLearner}, or \code{NULL}. If \code{glm} is specified, then a logistic regression will be used; if \code{SuperLearner} is specified, then the \code{SuperLearner} package will be used (and needs to be installed). If \code{propensity.method = NULL}, then \code{g.hats} must be provided.
-#' @param treat.subset Optional numeric vector of the columns of \code{confounders} that should be used to estimate the propensities. Defaults to using all available confounders to estimate the propensities.
-#' @param SL.library If \code{propensity.method = SuperLearner}, the library to use for the SuperLearner.
-#' @param S.hats.0 Optional n x k matrix of estimates of the conditional survival of the event given treatmet = 0 and confounders. If \code{propensity.method = NULL} and \code{0 \%in\% fit.treat}, then \code{S.hats.0} must be specified.
-#' @param S.hats.1 Optional n x k matrix of estimates of the conditional survival of the event given treatmet = 1 and confounders. If \code{propensity.method = NULL} and \code{1 \%in\% fit.treat}, then \code{S.hats.1} must be specified.
-#' @param G.hats.0 Optional n x k matrix of estimates of the conditional survival of censoring given treatmet = 0 and confounders. If \code{propensity.method = NULL} and \code{0 \%in\% fit.treat}, then \code{G.hats.0} must be specified.
-#' @param G.hats.1 Optional n x k matrix of estimates of the conditional survival of censoring given treatmet = 1 and confounders. If \code{propensity.method = NULL} and \code{1 \%in\% fit.treat}, then \code{G.hats.1} must be specified.
-#' @param g.hats Optional n x 1 numeric vector of estimated propensities. If \code{propensity.method = NULL}, then \code{g.hats} must be specified.
+#' @param time \code{n x 1} numeric vector of observed right-censored follow-up times; i.e. the minimum of the event and censoring times.
+#' @param event \code{n x 1} numeric vector of status indicators of whether an event was observed.
+#' @param treat \code{n x 1} numeric vector of observed binary treatment/exposure group; either 0 or 1.
+#' @param confounders \code{n x p} numeric matrix of potential confounders to use when estimating the conditional survival probabilities. Missing values are not allowed
+#' @param fit.times \code{k x 1} numeric vector of time grid at which the counterfactual survival function should be computed. Only values > 0 are allowed. Note that even if the survival is only desired at one timepoint (e.g. a final study time), fit.times should be a relatively fine grid between 0 and this final time in order for the computation to work. Defauls to all unique positive values in \code{time}.
+#' @param fit.treat Optional subset of \code{c(0,1)} for which the counterfactual survival curves are desired. For example, if \code{fit.treat=c(0,1)} (default behavior) then both curves will be estimated, and if \code{fit.treat=0} then only the curve under non-treatment will be estimated.
+#' @param nuisance.options List of options for nuisance parameter specification. See \code{\link{nuisance.options}} for details. Defaults to SuperLearners with rich libraries.
 #' @param conf.band Logical indicating whether to compute simultaneous confidence bands.
 #' @param conf.level Desired coverage of confidence intervals/bands.
-#' @param surv.diffs Logical indicating whether to return an estimate of the difference in the survival functions, along with confidence intervals and tests.
-#' @param surv.ratios Logical indicating whether to return an estimate of the ratio in the survival functions, along with confidence intervals and tests.
-#' @param risk.ratios Logical indicating whether to return an estimate of the difference in the survival functions, along with confidence intervals and tests.
-#' @param nnt Logical indicating whether to return an estimate of the number needed to treat (nnt), along with confidence intervals.
+#' @param contrasts Character vector indicating which (if any) contrasts of the survival functions are desired. Can include \code{"surv.diff"} (difference of survival functions), \code{"surv.ratio"} (ratio of survival functions), \code{"risk.ratio"} (ratio of the risk functions), or \code{"nnt"} (number needed to treat; i.e. recipricol of survival difference). If not \code{NULL}, then \code{fit.treat} must be \code{c(0,1)}. Defaults to \code{c("surv.diff", "surv.ratio")}.
 #' @param verbose Logical indicating whether progress should be printed to the command line.
-#' @param ... Additional arguments to be passed on to \code{randomForestSRC::rfsrc} (only used if \code{cond.surv.method = randomForestSRC}).
 #' @return \code{CFsurvfit} returns a named list with the following elements:
 #' \item{fit.times}{The time points at which the counterfactual survival curves (and contrasts) were fit.}
 #' \item{surv.df}{A data frame with the estimated counterfactual survival functions and CIs.}
@@ -39,12 +31,10 @@
 #' \item{risk.ratio.df}{A data frame with the estimated counterfactual risk ratio (treatment risk divided by control risk), as well as confidence intervals and tests of the null hypothesis that the ratio equals one. Note that standard errors and confidence intervals are first computed on the log scale, then exponentiated. Only returned if \code{risk.ratios=TRUE}.}
 #' \item{nnt.df}{A data frame with the estimated counterfactual number needed to treat (one divided by the survival difference), as well as confidence intervals and tests of the null hypothesis that the ratio equals one. Note that standard errors and confidence intervals are first computed on the log scale, then exponentiated. Only returned if \code{nnt=TRUE}.}
 #' \item{surv.0.sim.maxes, surv.1.sim.maxes, surv.diff.}{Samples from the approximate distribution of the maximum of the limiting Gaussian processes of the counterfactual survival functions.}
-#' \item{g.hats}{The estimated treatment propensities.}
-#' \item{S.hats.0, S.hats.1}{The estimated conditional survival functions of the event.}
-#' \item{G.hats.0, G.hats.1}{The estimated conditional survival functions of censoring.}
+#' \item{prop.pred}{The estimated treatment propensities.}
+#' \item{event.pred.0, event.pred.1}{The estimated conditional survival functions of the event.}
+#' \item{cens.pred.0, censd.pred.1}{The estimated conditional survival functions of censoring.}
 #' \item{data}{The original time, event, and treatment data supplied to the function.}
-#' @references Ishwaran, H., Kogalur, U. B., Blackstone, E. H., & Lauer, M. S. (2008). Random survival forests. \emph{The Annals of Applied Statistics}, 2(3), 841-860.
-#' @references van der Laan, M. J., Polley, E. C., & Hubbard, A. E. (2007). Super learner. \emph{Statistical Applications in Genetics and Molecular Biology}, 6(1).
 #' @examples
 #' # Define parameters
 #' n <- 300
@@ -66,7 +56,7 @@
 #' obs.event <- as.numeric(event.time <= cens.time)
 #'
 #' # Estimate the CF survivals
-#' fit <- CFsurvfit(time=obs.time, event=obs.event, treat=rx, cond.surv.method = "coxph", confounders = data.frame(covar), propensity.method = "glm", surv.diffs=TRUE, surv.ratios=TRUE, risk.ratios=TRUE, nnt=TRUE, verbose=TRUE)
+#' fit <- CFsurvfit(time=obs.time, event=obs.event, treat=rx, confounders = data.frame(covar), contrasts = c("surv.diff", "surv.ratios", "risk.ratios", "nnt"), verbose=TRUE)
 #'
 #' # It is a good idea to check the min/max of the propensity estimates and the min of the censoring estimates
 #' # If they are very small, there may be positivity violations, which may result in invalid inference.
@@ -148,183 +138,288 @@
 
 
 
-CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & time < max(time)])), fit.treat=c(0,1), cond.surv.method=c("randomForestSRC", "coxph", NULL), confounders=NULL, cens.subset=NULL, propensity.method=c("glm", "SuperLearner", NULL), treat.subset=NULL, SL.library=NULL, S.hats.0=NULL, G.hats.0=NULL, S.hats.1=NULL, G.hats.1=NULL, g.hats=NULL, conf.band=TRUE, conf.level=.95, surv.diffs=TRUE, surv.ratios=TRUE, risk.ratios=FALSE, nnt=FALSE, verbose=FALSE, ...) {
-    .args <- mget(names(formals()),sys.frame(sys.nframe()))
-    do.call(.check.input, .args)
 
-    propensity.method <- propensity.method[1]
+CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(time[time > 0 & time < max(time[event == 1])])), fit.treat=c(0,1), nuisance.options = list(), conf.band=TRUE, conf.level=.95, contrasts = c('surv.diff', 'surv.ratio'), verbose=FALSE) {
+    .args <- mget(names(formals()), sys.frame(sys.nframe()))
+
+    nuis <- do.call("CFsurvival.nuisance.options", nuisance.options)
+
+    n <- length(time)
+    k <- length(fit.times)
+    if(sum(1-event) == 0) {
+        warning("No censored events; unanticipated errors may occur.")
+        nuis$cens.pred.0 <- nuis$cens.pred.1 <- matrix(1, nrow=n, ncol=k)
+    }
+    if(sum(event) == 0) {
+        stop("No uncensored events; cannot perform estimation.")
+    }
+
+    if(!nuis$cross.fit) {
+        if(!is.null(nuis$folds) | nuis$V > 1) {
+            warning("nuisance.options$cross.fit set to FALSE, but V > 1 or folds specified. Cross-fitting will not be performed.")
+        }
+        nuis$V <- 1
+        nuis$folds <- rep(1, n)
+    }
+    if(!is.null(nuis$folds)) {
+        nuis$folds <- as.numeric(factor(nuis$folds))
+        nuis$V <- length(unique(nuis$folds))
+    }
+    if(nuis$cross.fit & is.null(nuis$folds)) {
+        while (sum(event) < nuis$V | sum(1-event) < nuis$V) {
+            if (nuis$V == 1) {
+                warning("Cannot perform cross-fitting with one uncensored event.")
+                nuis$cross.fit <- FALSE
+                nuis$V <- 1
+                break
+            }
+            warning(paste0("Number of (event = 1) or (event = 0) is less than the number of folds; reducing number of folds to ", nuis$V-1))
+            nuis$V <- nuis$V-1
+        }
+        event.0 <- which(event == 0)
+        event.1 <- which(event == 1)
+        folds.0 <- sample(rep(1:nuis$V, length = length(event.0)))
+        folds.1 <- sample(rep(1:nuis$V, length = length(event.1)))
+        nuis$folds <- rep(NA, n)
+        nuis$folds[event.0] <- folds.0
+        nuis$folds[event.1] <- folds.1
+    }
+
+
+    contrasts <- unique(tolower(contrasts))
+    contrasts <- contrasts[contrasts %in% c("surv.diff", "surv.ratio", "risk.ratio", "nnt")]
+    .check.input(time=time, event=event, treat=treat, confounders=confounders, fit.times=fit.times, fit.treat=fit.treat, nuisance.options=nuis, conf.band=conf.band, conf.level=conf.level, contrasts=contrasts, verbose=verbose)
 
     if(any(fit.times <= 0)) {
         fit.times <- fit.times[fit.times > 0]
         warning("fit.times <= 0 removed.")
     }
-    if(any(fit.times > max(time))) {
-        fit.times <- fit.times[fit.times <= max(time)]
-        warning("fit.times > max(time) removed.")
+    if(any(fit.times > max(time[event == 1]))) {
+        fit.times <- fit.times[fit.times <= max(time[event == 1])]
+        warning("fit.times > max(time[event == 1]) removed.")
     }
-    confounders <- as.matrix(confounders)
-    colnames(confounders) <- paste0("V", 1:ncol(confounders))
+    confounders <- as.data.frame(confounders)
 
     surv.df <- data.frame()
     result <- list(fit.times=fit.times, fit.treat=fit.treat, surv.df=surv.df)
 
     #### ESTIMATE PROPENSITY ####
 
-    if(is.null(g.hats)) {
+    if(is.null(nuis$prop.pred)) {
         if(verbose) message("Estimating propensities...")
-        if(is.null(treat.subset)) treat.subset <- 1:ncol(confounders)
-        g.fit <- .estimate.propensity(A=treat, W.propensity=confounders[,treat.subset], method=propensity.method, SL.library=SL.library)
-        g.hats <- g.fit$g.hats
-        result <- c(result, g.fit)
+        nuis$prop.pred <- rep(NA, n)
+        if(nuis$V > 1) {
+            if(nuis$save.nuis.fits) result$prop.fits <- vector(mode='list',length=nuis$V)
+            for(v in 1:nuis$V) {
+                if(verbose) message(paste("Fold ", v, "..."))
+                train <- nuis$fold != v
+                test <- nuis$fold == v
+                prop.fit <- .estimate.propensity(A=treat[train], W=confounders[train,,drop=FALSE], newW=confounders[test,, drop=FALSE], SL.library=nuis$prop.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
+                nuis$prop.pred[test] <- prop.fit$prop.pred
+                if(nuis$save.nuis.fits) result$prop.fits[[v]] <- prop.fit$prop.fit
+            }
+        } else {
+            prop.fit <- .estimate.propensity(A=treat, W.propensity=confounders[,nuis$prop.subset, drop=FALSE], newW=confounders[,nuis$prop.subset, drop=FALSE], SL.library=nuis$prop.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
+            nuis$prop.pred[test] <- prop.fit$prop.pred
+            if(nuis$save.nuis.fits) {
+                result <- c(result, prop.fit = prop.fit$prop.fit)
+            }
+        }
     }
 
     #### ESTIMATE EVENT SURVIVALS ####
 
-    if((1 %in% fit.treat & is.null(S.hats.1)) | (0 %in% fit.treat & is.null(S.hats.0))) {
-        if(verbose) message("Estimating conditional event survivals...")
-        S.hats <- .estimate.conditional.survival(Y=time, Delta=event, A=treat, fit.times=fit.times, fit.treat=fit.treat, method=cond.surv.method, W=confounders, ...)
-        if(1 %in% fit.treat & is.null(S.hats.1)) {
-            S.hats.1 <- S.hats$S.hats.1
-        }
-        if(0 %in% fit.treat & is.null(S.hats.0)) {
-            S.hats.0 <- S.hats$S.hats.0
-        }
-        result$cond.surv.method <- cond.surv.method
-    }
-
-    #### ESTIMATE CENSORING SURVIVALS ####
-
-    if((1 %in% fit.treat & is.null(G.hats.1)) | (0 %in% fit.treat & is.null(G.hats.0))) {
-        if(verbose) message("Estimating conditional censoring survivals...")
-        if(is.null(cens.subset)) cens.subset <- 1:ncol(confounders)
-        G.hats <- .estimate.conditional.survival(Y=time, Delta=1-event, A=treat, fit.times=fit.times, fit.treat=fit.treat, method=cond.surv.method, W=confounders[,cens.subset], ...)
-        if(1 %in% fit.treat & is.null(G.hats.1)) {
-            G.hats.1 <- G.hats$S.hats.1
-        }
-        if(0 %in% fit.treat & is.null(G.hats.0)) {
-            G.hats.0 <- G.hats$S.hats.0
+    if((1 %in% fit.treat & (is.null(nuis$event.pred.1) | is.null(nuis$cens.pred.1))) | (0 %in% fit.treat & (is.null(nuis$event.pred.0) | is.null(nuis$cens.pred.0)))) {
+        if(verbose) message("Estimating conditional survivals...")
+        if(0 %in% fit.treat & is.null(nuis$event.pred.0)) {
+            do.event.pred.0 <- TRUE
+            nuis$event.pred.0 <- matrix(NA, nrow=n, ncol=k)
+        } else do.event.pred.0 <- FALSE
+        if(1 %in% fit.treat & is.null(nuis$event.pred.1)) {
+            do.event.pred.1 <- TRUE
+            nuis$event.pred.1 <- matrix(NA, nrow=n, ncol=k)
+        } else do.event.pred.1 <- FALSE
+        if(0 %in% fit.treat & is.null(nuis$cens.pred.0)) {
+            do.cens.pred.0 <- TRUE
+            nuis$cens.pred.0 <- matrix(NA, nrow=n, ncol=k)
+        } else do.cens.pred.0 <- FALSE
+        if(1 %in% fit.treat & is.null(nuis$cens.pred.1)) {
+            do.cens.pred.1 <- TRUE
+            nuis$cens.pred.1 <- matrix(NA, nrow=n, ncol=k)
+        } else do.cens.pred.1 <- FALSE
+        if(nuis$V > 1) {
+            if(nuis$save.nuis.fits) result$surv.fits <- vector(mode='list',length=nuis$V)
+            for(v in 1:nuis$V) {
+                if(verbose) message(paste("Fold ", v, "..."))
+                train <- nuis$fold != v
+                test <- nuis$fold == v
+                surv.fit <- .estimate.conditional.survival(Y=time[train], Delta=event[train], A=treat[train], W=confounders[train,, drop=FALSE], newW=confounders[test,, drop=FALSE], event.SL.library=nuis$event.SL.library, fit.times=fit.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
+                if(do.event.pred.0) nuis$event.pred.0[test] <- surv.fit$event.pred.0
+                if(do.event.pred.1) nuis$event.pred.1[test] <- surv.fit$event.pred.1
+                if(do.cens.pred.0) nuis$cens.pred.0[test] <- surv.fit$cens.pred.0
+                if(do.cens.pred.1) nuis$cens.pred.1[test] <- surv.fit$cens.pred.1
+                if(nuis$save.nuis.fits) result$surv.fits[[v]] <- surv.fit$surv.fit
+            }
+        } else {
+            surv.fit <- .estimate.conditional.survival(Y=time, Delta=event, A=treat, W=confounders, newW=confounders, event.SL.library=nuis$event.SL.library, fit.times=fit.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
+            if(do.event.pred.0) nuis$event.pred.0 <- surv.fit$event.pred.0
+            if(do.event.pred.1) nuis$event.pred.1 <- surv.fit$event.pred.1
+            if(do.cens.pred.0) nuis$cens.pred.0 <- surv.fit$cens.pred.0
+            if(do.cens.pred.1) nuis$cens.pred.1 <- surv.fit$cens.pred.1
+            if(nuis$save.nuis.fits) result$surv.fit <- surv.fit$surv.fit
         }
     }
 
     #### ESTIMATE CF SURVIVALS ####
-
+    q.025 <- quantile(time[event == 1], .025)
+    q.975 <- quantile(time[event == 1], .975)
     if(verbose) message("Computing counterfactual survivals...")
-    if(1 %in% fit.treat) {
-        surv.1 <- .get.survival(Y=time, Delta=event, A=treat, times=fit.times, S.hats=S.hats.1, G.hats=G.hats.1, g.hats=g.hats)
-        surv.df.1 <- data.frame(time=c(0,fit.times), trt=1, surv=c(1, surv.1$surv.iso))
-        result$IF.vals.1 <- surv.1$IF.vals
-
-        c.int <- .surv.confints(fit.times, surv.1$surv, surv.1$IF.vals, conf.band = conf.band, conf.level=conf.level)
-        surv.df.1$se <- c(0,c.int$res$se)
-        surv.df.1$ptwise.lower <- c(1,c.int$res$ptwise.lower)
-        surv.df.1$ptwise.upper <- c(1,c.int$res$ptwise.upper)
-
-        if(conf.band) {
-            surv.df.1$unif.lower <- c(1,c.int$res$unif.lower)
-            surv.df.1$unif.upper <- c(1,c.int$res$unif.upper)
-            result$surv.1.unif.quant <- c.int$unif.quant
-            result$surv.1.sim.maxes <- c.int$sim.maxes
-        }
-        result$surv.df <- rbind(result$surv.df, surv.df.1)
-    }
-
     if(0 %in% fit.treat) {
-        surv.0 <- .get.survival(Y=time, Delta=event, A=1-treat, times=fit.times, S.hats=S.hats.0, G.hats=G.hats.0, g.hats=1-g.hats)
+        surv.0 <- .get.survival(Y=time, Delta=event, A=1-treat, times=fit.times, S.hats=nuis$event.pred.0, G.hats=nuis$cens.pred.0, g.hats=1-nuis$prop.pred)
         surv.df.0 <- data.frame(time=c(0,fit.times), trt=0, surv=c(1, surv.0$surv.iso))
         result$IF.vals.0 <- surv.0$IF.vals
 
-        c.int <- .surv.confints(fit.times, surv.0$surv, surv.0$IF.vals, conf.band = conf.band, conf.level=conf.level)
+        c.int <- .surv.confints(fit.times, surv.0$surv, surv.0$IF.vals, conf.band = conf.band, band.end.pts = c(q.025, q.975), conf.level=conf.level)
         surv.df.0$se <- c(0,c.int$res$se)
         surv.df.0$ptwise.lower <- c(1,c.int$res$ptwise.lower)
         surv.df.0$ptwise.upper <- c(1,c.int$res$ptwise.upper)
 
         if(conf.band) {
-            surv.df.0$unif.lower <- c(1,c.int$res$unif.lower)
-            surv.df.0$unif.upper <- c(1,c.int$res$unif.upper)
-            result$surv.0.unif.quant <- c.int$unif.quant
-            result$surv.0.sim.maxes <- c.int$sim.maxes
+            surv.df.0$unif.ew.lower <- c(1,c.int$res$unif.ew.lower)
+            surv.df.0$unif.ew.upper <- c(1,c.int$res$unif.ew.upper)
+            result$surv.0.unif.ew.quant <- c.int$unif.ew.quant
+            result$surv.0.ew.sim.maxes <- c.int$ew.sim.maxes
+
+            surv.df.0$unif.logit.lower <- c(1,c.int$res$unif.logit.lower)
+            surv.df.0$unif.logit.upper <- c(1,c.int$res$unif.logit.upper)
+            result$surv.0.unif.logit.quant <- c.int$unif.logit.quant
+            result$surv.0.logit.sim.maxes <- c.int$logit.sim.maxes
         }
         result$surv.df <- rbind(result$surv.df, surv.df.0)
     }
 
+    if(1 %in% fit.treat) {
+        surv.1 <- .get.survival(Y=time, Delta=event, A=treat, times=fit.times, S.hats=nuis$event.pred.1, G.hats=nuis$cens.pred.1, g.hats=nuis$prop.pred)
+        surv.df.1 <- data.frame(time=c(0,fit.times), trt=1, surv=c(1, surv.1$surv.iso))
+        result$IF.vals.1 <- surv.1$IF.vals
+
+        c.int <- .surv.confints(fit.times, surv.1$surv, surv.1$IF.vals, conf.band = conf.band, band.end.pts = c(q.025, q.975), conf.level=conf.level)
+        surv.df.1$se <- c(0,c.int$res$se)
+        surv.df.1$ptwise.lower <- c(1,c.int$res$ptwise.lower)
+        surv.df.1$ptwise.upper <- c(1,c.int$res$ptwise.upper)
+
+        if(conf.band) {
+            surv.df.1$unif.ew.lower <- c(1,c.int$res$unif.ew.lower)
+            surv.df.1$unif.ew.upper <- c(1,c.int$res$unif.ew.upper)
+            result$surv.1.unif.ew.quant <- c.int$unif.ew.quant
+            result$surv.1.ew.sim.maxes <- c.int$ew.sim.maxes
+
+            surv.df.1$unif.logit.lower <- c(1,c.int$res$unif.logit.lower)
+            surv.df.1$unif.logit.upper <- c(1,c.int$res$unif.logit.upper)
+            result$surv.1.unif.logit.quant <- c.int$unif.logit.quant
+            result$surv.1.logit.sim.maxes <- c.int$logit.sim.maxes
+        }
+        result$surv.df <- rbind(result$surv.df, surv.df.1)
+    }
+
+
+
     #### ESTIMATE CF CONTRASTS ####
-    if(surv.diffs & identical(sort(fit.treat), c(0,1))) {
+    if('surv.diffs' %in% contrasts & identical(sort(fit.treat), c(0,1))) {
         if(verbose) message("Computing survival differences...")
         surv.diff <- .surv.difference(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, conf.level=conf.level)
         result <- c(result, surv.diff)
     }
 
-    if(surv.ratios & identical(sort(fit.treat), c(0,1))) {
+    if('surv.ratios' %in% contrasts & identical(sort(fit.treat), c(0,1))) {
         if(verbose) message("Computing survival ratios...")
         surv.ratio <- .surv.ratio(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, conf.level=conf.level)
         result <- c(result, surv.ratio)
     }
 
-    if(risk.ratios & identical(sort(fit.treat), c(0,1))) {
+    if('risk.ratios' %in% contrasts  & identical(sort(fit.treat), c(0,1))) {
         if(verbose) message("Computing risk ratios...")
         risk.ratio <- .risk.ratio(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, conf.level=conf.level)
         result <- c(result, risk.ratio)
     }
 
-    if(nnt & identical(sort(fit.treat), c(0,1))) {
+    if('nnt' %in% contrasts  & identical(sort(fit.treat), c(0,1))) {
         if(verbose) message("Computing number needed to treat...")
         nnt <- .nnt(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, conf.level=conf.level)
         result <- c(result, nnt)
     }
 
-    result$g.hats <- g.hats
-
-    if(1 %in% fit.treat) {
-        result$S.hats.1 <- S.hats.1
-        result$G.hats.1 <- G.hats.1
-    }
-    if(0 %in% fit.treat) {
-        result$S.hats.0 <- S.hats.0
-        result$G.hats.0 <- G.hats.0
-    }
-
     result$data <- data.frame(time, event, treat)
+    result$nuisance <- nuis
 
     return(result)
-
 }
 
-.check.input <- function(time, event, treat, fit.times, fit.treat, cond.surv.method, confounders, cens.subset, propensity.method, treat.subset, SL.library, S.hats.0, G.hats.0, S.hats.1, G.hats.1, g.hats, conf.band, conf.level, surv.diffs, surv.ratios, risk.ratios, nnt, verbose, ...) {
-    if(any(time < 0)) stop("Only positive event/censoring times allowed!")
+
+#' Initialize options for nuisance estimation
+#'
+#' This function initializes the options for nuisance parameter estimation (i.e. conditional survivals of event and censoring and treatment propensity) for use in \code{CFsurvfit}. The conditional survivals of event and censoring are estimated using \code{\link[surv.SuperLearner]{surv.SuperLearner}}, or any of the individual learners therein. Treatment propensity is estimated using the \code{\link[SuperLearner]{SuperLearner}}, or any of the individual learners therein. Alternatively, the estimation process can be overriden by providing predictions from pre-fit nuisance estimators.
+#'
+#' @param cross.fit Logical indicating whether to cross-fit nuisance parameters. Defaults to \code{TRUE}.
+#' @param V Positive integer number of folds for cross-fitting. Defaults to 10.
+#' @param folds Optional \code{n x 1} vector indicating which fold each observation is in. If \code{NULL}, folds will be randomly assigned in such a way to balance observed events across folds.
+#' @param save.nuis.fits Logical indicating whether to save the fitted nuisance objects.
+#' @param event.SL.library The library of candidate learners to be passed on to \code{\link[surv.SuperLearner]{surv.SuperLearner}} to estimate the conditional survival of the event. If only a single learner is provided(e.g. \code{surv.SL.km} for Kaplan-Meier estimator, \code{surv.SL.coxph} for Cox model, or \code{surv.SL.rfsrc} for survival random forest), then just this learner will be used, and no super learning will be performed. Defaults to a full library with screening and all algorithms currently implemented in \code{surv.SuperLearner}. If \code{event.SL.library = NULL}, then \code{event.pred.0} and/or \code{event.pred.1} must be specified.
+#' @param event.pred.0 Optional \code{n x k} matrix of estimates of the conditional survival of the event given treatment = 0 and confounders. If \code{event.SL.library = NULL} and \code{0 \%in\% fit.treat}, then \code{event.pred.0} must be specified. If \code{event.SL.library} is not \code{NULL}, then \code{event.pred.0 } is ignored.
+#' @param event.pred.1 Optional \code{n x k} matrix of estimates of the conditional survival of the event given treatment = 1 and confounders. If \code{event.SL.library = NULL} and \code{1 \%in\% fit.treat}, then \code{event.pred.1} must be specified. If \code{event.SL.library} is not \code{NULL}, then \code{event.pred.1 } is ignored.
+#' @param cens.SL.library The library of candidate learners to estimate the conditional survival of censoring. As with \code{event.SL.library}, single learners can be specified. Defaults to a full library with screening and all algorithms currently implemented in \code{surv.SuperLearner}. If \code{cens.SL.library = NULL}, then \code{cens.pred.0} and/or \code{cens.pred.1} must be specified.
+#' @param cens.pred.0 Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 0 and confounders. If \code{cens.SL.library = NULL} and \code{0 \%in\% fit.treat}, then \code{cens.pred.0} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.0 } is ignored.
+#' @param cens.pred.1 Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 1 and confounders. If \code{cens.SL.library = NULL} and \code{1 \%in\% fit.treat}, then \code{cens.pred.1} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.1} is ignored.
+#' @param prop.SL.library The library to use for estimation of the treatment propensities using \code{\link[SuperLearner]{SuperLearner}}. If only a single learner is provided(e.g. \code{SL.mean} for marginal mean, \code{SL.glm} for logistic regression, or \code{SL.ranger} for random forest), then just this learner will be used, and no super learning will be performed. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be provided.
+#' @param prop.pred Optional \code{n x 1} numeric vector of estimated probabilities that \code{treat = 1} given the confounders. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be specified, otherwise it is ignored.
+#'
+CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = 10, folds = NULL, save.nuis.fits = FALSE,
+                                        event.SL.library = lapply(c("surv.SL.km", "surv.SL.coxph", "surv.SL.expreg", "surv.SL.weibreg", "surv.SL.loglogreg", "surv.SL.gam", "surv.SL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet", "surv.screen.marg", "All") ),  event.pred.0 = NULL, event.pred.1 = NULL,
+                                        cens.SL.library = lapply(c("surv.SL.km", "surv.SL.coxph", "surv.SL.expreg", "surv.SL.weibreg", "surv.SL.loglogreg", "surv.SL.gam", "surv.SL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet", "surv.screen.marg", "All") ),  cens.pred.0 = NULL, cens.pred.1 = NULL,
+                                        prop.SL.library = lapply(c("SL.mean", "SL.bayesglm", "SL.gam", "SL.earth", "SL.ranger", "SL.xgboost"), function(alg) c(alg, "screen.glmnet", "screen.corRank", "All") ), prop.pred = NULL) {
+    list(cross.fit = cross.fit, V = V, folds = folds, save.nuis.fits = save.nuis.fits,
+         event.SL.library = event.SL.library, event.pred.0 = event.pred.0, event.pred.1 = event.pred.1,
+         cens.SL.library = cens.SL.library, cens.pred.0 = cens.pred.0, cens.pred.1 = cens.pred.1,
+         prop.SL.library = prop.SL.library,  prop.pred = prop.pred)
+}
+
+.check.input <- function(time, event, treat, confounders, fit.times, fit.treat, nuisance.options, conf.band, conf.level, contrasts, verbose, ...) {
+    if(any(time < 0)) stop("Only non-negative event/censoring times allowed!")
     if(any(time == 0 & event == 1)) stop("Events at time zero not allowed.")
     if(any(!(event %in% c(0,1)))) stop("Event must be binary.")
     if(any(!(treat %in% c(0,1)))) stop("Treatment must be binary.")
     if(length(time) != length(event) | length(time) != length(treat)) stop("time, event, and treat must be n x 1 vectors")
     if(any(!(fit.treat %in% c(0,1)))) stop("fit.treat must be a subset of c(0,1).")
-    if(!is.null(S.hats.1) && dim(S.hats.1) != c(nrow(time), length(fit.times))) {
-        stop("S.hats must be an n x k matrix (n is number of observations, k is length of fit.times)")
+    if(!is.null(nuisance.options$event.pred.1) && dim(nuisance.options$event.pred.1) != c(nrow(time), length(fit.times))) {
+        stop("event.pred must be an n x k matrix (n is number of observations, k is length of fit.times)")
     }
-    if(!is.null(S.hats.0) && dim(S.hats.0) != c(nrow(time), length(fit.times))) {
-        stop("S.hats must be an n x k matrix (n is number of observations, k is length of fit.times)")
+    if(!is.null(nuisance.options$event.pred.0) && dim(nuisance.options$event.pred.0) != c(nrow(time), length(fit.times))) {
+        stop("event.pred must be an n x k matrix (n is number of observations, k is length of fit.times)")
     }
-    if(!is.null(G.hats.1) && dim(G.hats.1) != c(nrow(time), length(fit.times))) {
-        stop("G.hats must be an n x k matrix (n is number of observations, k is length of fit.times)")
+    if(!is.null(nuisance.options$cens.pred.1) && dim(nuisance.options$cens.pred.1) != c(nrow(time), length(fit.times))) {
+        stop("cens.pred must be an n x k matrix (n is number of observations, k is length of fit.times)")
     }
-    if(!is.null(G.hats.0) && dim(G.hats.0) != c(nrow(time), length(fit.times))) {
-        stop("G.hats must be an n x k matrix (n is number of observations, k is length of fit.times)")
+    if(!is.null(nuisance.options$cens.pred.0) && dim(nuisance.options$cens.pred.0) != c(nrow(time), length(fit.times))) {
+        stop("cens.pred must be an n x k matrix (n is number of observations, k is length of fit.times)")
     }
-    if(!is.null(cond.surv.method)) {
-        if(!(cond.surv.method %in% c("coxph", "randomForestSRC"))) {
-            stop("cond.surv.method must be one of coxph or randomForestSRC if not NULL")
+    if(is.null(nuisance.options$event.SL.library)) {
+        if(0 %in% fit.treat & is.null(nuisance.options$event.pred.0)) {
+            stop("event.pred.0 must be provided if event.SL.library is not specified and 0 is a treatment of interest.")
         }
-        if(!is.null(S.hats.0) | !is.null(G.hats.0) | !is.null(S.hats.1) | !is.null(G.hats.1)) {
-            warning("cond.surv.method not NULL but S.hats or G.hats provided.")
-        }
-    } else {
-        if(0 %in% fit.treat & (is.null(S.hats.0) | is.null(G.hats.0))) {
-            stop("S.hats.0 and G.hats.0 if cond.surv.method is not specified and 0 is a treatment of interest.")
-        }
-        if(1 %in% fit.treat & (is.null(S.hats.1) | is.null(G.hats.1))) {
-            stop("S.hats.1 and G.hats.1 if cond.surv.method is not specified and 1 is a treatment of interest.")
+        if(1 %in% fit.treat & is.null(nuisance.options$event.pred.1)) {
+            stop("event.pred.1 must be provided if event.SL.library is not specified and 1 is a treatment of interest.")
         }
     }
-    if((surv.diffs | surv.ratios | risk.ratios | nnt ) & !identical(sort(fit.treat), c(0,1))) {
-        warning("surv.diffs, surv.ratios, or risk ratios specified but both treatment regimens not requested -- contrasts will not be provided. Re-run with fit.treat = c(0,1) for survival contrasts.")
+    if(is.null(nuisance.options$cens.SL.library)) {
+        if(0 %in% fit.treat & is.null(nuisance.options$cens.pred.0)) {
+            stop("cens.pred.0 must be provided if cens.SL.library is not specified and 0 is a treatment of interest.")
+        }
+        if(1 %in% fit.treat & is.null(nuisance.options$cens.pred.1)) {
+            stop("cens.pred.1 must be provided if cens.SL.library is not specified and 1 is a treatment of interest.")
+        }
+    }
+    if(length(contrasts) > 0 & !identical(sort(fit.treat), c(0,1))) {
+        warning("contrast specified but both treatment regimens not requested -- contrasts will not be provided. Re-run with fit.treat = c(0,1) for survival contrasts.")
     }
     if(any(is.na(time) | is.na(event))) {
         stop("Missing time or event detected; missing data not allowed.")
@@ -333,8 +428,6 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
         warning("Missing confounders or exposures detected; missing data not allowed.")
     }
 }
-
-
 
 .get.survival <- function(Y, Delta, A, times, S.hats, G.hats, g.hats, isotonize=TRUE) {
     times <- times[times > 0]
@@ -371,7 +464,7 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
     return(res)
 }
 
-.surv.confints <- function(times, est, IF.vals, isotonize=TRUE, conf.band=TRUE, conf.level=.95) {
+.surv.confints <- function(times, est, IF.vals, isotonize=TRUE, conf.band=TRUE, band.end.pts=NULL, conf.level=.95) {
     logit <- function(x) log(x / (1-x))
     logit.prime <- function(x) 1/(x * (1-x))
     expit <- function(x) 1/(1 + exp(-x))
@@ -408,26 +501,41 @@ CFsurvfit <- function(time, event, treat, fit.times=sort(unique(time[time > 0 & 
     }
     out <- NULL
     if(conf.band) {
-        unif.vals <- .estimate.uniform.quantile(IF.vals.logit[,!is.na(res$se.logit)], conf.level)
+        unif.vals <- .estimate.uniform.quantile(IF.vals[,!is.na(res$se)], conf.level, scale = FALSE)
         unif.quant <- unif.vals$quantile
-        out$sim.maxes <- unif.vals$maxes
-        out$unif.quant <- unif.quant
-        res$unif.lower <- expit(logit(est) - unif.quant * res$se.logit) #pmax(est - unif.quant * res$se, 0)
-        res$unif.upper <- expit(logit(est) + unif.quant * res$se.logit) # pmin(est + unif.quant * res$se, 1)
-        res$unif.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
-        res$unif.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+        out$ew.sim.maxes <- unif.vals$maxes
+        out$unif.ew.quant <- unif.quant
+        res$unif.ew.lower <- pmax(est - unif.quant / sqrt(n), 0)
+        res$unif.ew.upper <- pmin(est + unif.quant / sqrt(n), 1)
+        res$unif.ew.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$unif.ew.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+        res$unif.ew.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$unif.ew.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
         if(isotonize) {
-            res$unif.lower[!is.na(res$unif.lower)] <- 1 - isoreg(times[!is.na(res$unif.lower)], 1-res$unif.lower[!is.na(res$unif.lower)])$yf
-            res$unif.upper[!is.na(res$unif.upper)] <- 1 - isoreg(times[!is.na(res$unif.upper)], 1-res$unif.upper[!is.na(res$unif.upper)])$yf
+            res$unif.ew.lower[!is.na(res$unif.ew.lower)] <- 1 - isoreg(times[!is.na(res$unif.ew.lower)], 1-res$unif.ew.lower[!is.na(res$unif.ew.lower)])$yf
+            res$unif.ew.upper[!is.na(res$unif.ew.upper)] <- 1 - isoreg(times[!is.na(res$unif.ew.upper)], 1-res$unif.ew.upper[!is.na(res$unif.ew.upper)])$yf
+        }
+
+        unif.logit.vals <- .estimate.uniform.quantile(IF.vals.logit[,!is.na(res$se.logit) & times >= band.end.pts[1] & times <= band.end.pts[2]], conf.level)
+        unif.logit.quant <- unif.logit.vals$quantile
+        out$logit.sim.maxes <- unif.logit.vals$maxes
+        out$unif.logit.quant <- unif.logit.quant
+        res$unif.logit.lower <- expit(logit(est) - unif.quant * res$se.logit) #pmax(est - unif.quant * res$se, 0)
+        res$unif.logit.upper <- expit(logit(est) + unif.quant * res$se.logit) # pmin(est + unif.quant * res$se, 1)
+        res$unif.logit.lower[times < band.end.pts[1] | times > band.end.pts[2]] <- NA
+        res$unif.logit.upper[times < band.end.pts[1] | times > band.end.pts[2]] <- NA
+        # res$unif.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+        # res$unif.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+        if(isotonize) {
+            res$unif.logit.lower[!is.na(res$unif.logit.lower)] <- 1 - isoreg(times[!is.na(res$unif.logit.lower)], 1-res$unif.logit.lower[!is.na(res$unif.logit.lower)])$yf
+            res$unif.logit.upper[!is.na(res$unif.logit.upper)] <- 1 - isoreg(times[!is.na(res$unif.logit.upper)], 1-res$unif.logit.upper[!is.na(res$unif.logit.upper)])$yf
         }
     }
     out$res <- res
     return(out)
 }
 
-.estimate.uniform.quantile <- function(IF.vals, conf.level=.95) {
+.estimate.uniform.quantile <- function(IF.vals, conf.level=.95, scale=TRUE) {
     n <- nrow(IF.vals)
-    IF.vals <- scale(IF.vals)
+    if(scale) IF.vals <- scale(IF.vals)
     maxes <- replicate(1e4, max(abs(rbind(rt(n, df = n - 1)/sqrt(n)) %*% IF.vals)))
     return(list(quantile=quantile(maxes, 1 - (1 - conf.level)/2), maxes=maxes))
 }

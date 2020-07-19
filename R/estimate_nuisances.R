@@ -1,60 +1,50 @@
-.estimate.conditional.survival <- function(Y, Delta, A, fit.times, fit.treat, method, W, ...) {
-    ret <- list(times=fit.times)
-    if(method == "coxph") {
-        AW <- cbind(A, W)
-        library(survival)
-        df <- as.data.frame(cbind(Y=Y, Delta=Delta, A=A, W))
-        fit <- coxph(Surv(Y, Delta) ~ ., data=df)
-        if(0 %in% fit.treat) {
-            AW0 <- as.data.frame(cbind(A=0, W))
-            ret$S.hats.0 <- t(summary(survfit(fit, newdata=AW0,  se.fit = FALSE, conf.int = FALSE), times=fit.times)$surv)
-        }
-        if(1 %in% fit.treat) {
-            AW1 <- as.data.frame(cbind(A=1, W))
-            ret$S.hats.1 <- t(summary(survfit(fit, newdata=AW1,  se.fit = FALSE, conf.int = FALSE), times=fit.times)$surv)
-        }
+.estimate.conditional.survival <- function(Y, Delta, A, W, newW, fit.times, fit.treat, event.SL.library, cens.SL.library, verbose, save.fit) {
+    ret <- list(fit.times=fit.times)
+    AW <- cbind(A, W)
+    if(0 %in% fit.treat & 1 %in% fit.treat) {
+        newAW <- rbind(cbind(A=0, newW), cbind(A=1, newW))
+    } else {
+        newAW <- cbind(A=fit.treat, newW)
     }
-    if(method == "randomForestSRC") {
-        library(randomForestSRC)
-        library(survival)
-        data <- data.frame(Y, Delta, A)
-        data <- cbind(data, W)
-        fit <- rfsrc(Surv(Y, Delta) ~ ., data=data, ...)
-        if(0 %in% fit.treat) {
-            AW0 <- data
-            AW0$A <- 0
-            survs <- predict(fit, newdata=AW0, importance='none')$survival
-            ret$S.hats.0 <- t(sapply(1:nrow(survs), function(i) {
-                approx(c(0,fit$time.interest), c(0,survs[i,]), method='linear', xout = fit.times)$y
-            }))
-        }
+    library(surv.SuperLearner)
+
+    fit <- surv.SuperLearner(time = Y, event = Delta,  X = AW, newX = newAW, new.times = fit.times, event.SL.library = event.SL.library, cens.SL.library = cens.SL.library, verbose=verbose, control = list(saveFitLibrary = save.fit))
+    if(save.fit) ret$surv.fit <- fit
+    if(0 %in% fit.treat) {
+        ret$event.pred.0 <- fit$event.SL.predict[1:nrow(newW),]
+        ret$cens.pred.0 <- fit$cens.SL.predict[1:nrow(newW),]
         if(1 %in% fit.treat) {
-            AW1 <- data
-            AW1$A <- 1
-            survs <- predict(fit, newdata=AW1, importance='none')$survival
-            ret$S.hats.1 <- t(sapply(1:nrow(survs), function(i) {
-                approx(c(0,fit$time.interest), c(0,survs[i,]), method='linear', xout = fit.times)$y
-            }))
+            ret$event.pred.1 <- fit$event.SL.predict[-(1:nrow(newW)),]
+            ret$cens.pred.1 <- fit$cens.SL.predict[-(1:nrow(newW)),]
         }
+    } else {
+        ret$event.pred.1 <- fit$event.SL.predict
+        ret$cens.pred.1 <- fit$cens.SL.predict
     }
-    ret$cond.surv.method <- method
     return(ret)
 }
 
-.estimate.propensity <- function(A, W.propensity, method, SL.library=NULL) {
-    ret <- list(method=method, SL.library=SL.library)
-    if (method == "glm") {
-        prop.fit <- glm(A ~ W.propensity, family='binomial')
-        ret$g.hats <- prop.fit$fitted.values
-        ret$propensity.coef <- prop.fit$coef
+.estimate.propensity <- function(A, W, newW, SL.library, save.fit, verbose) {
+    ret <- list()
+    library(SuperLearner)
+    if (length(SL.library) == 1) {
+        if(length(unlist(SL.library)) == 2 & ncol(W) > 1) {
+            screen <- get(SL.library[[1]][2])
+            whichScreen <- screen(Y = A, X = W, family = 'binomial')
+        } else {
+            whichScreen <- rep(TRUE, ncol(W))
+        }
+        learner <- get(SL.library[[1]][1])
+        prop.fit <- learner(Y = A, X = W[,whichScreen, drop=FALSE], newX = newW[,whichScreen, drop=FALSE], family='binomial')
+        ret$prop.pred <- prop.fit$pred
+        if(save.fit) {
+            ret$prop.fit <- list(whichScreen = whichScreen, pred.alg = prop.fit)
+        }
+    } else {
+        prop.fit <- SuperLearner(Y=A, X=W, newX=newW, family='binomial',
+                                 SL.library=SL.library, method = "method.NNloglik", verbose = verbose)
+        ret$prop.pred <- c(prop.fit$SL.predict)
+        if(save.fit) ret$prop.fit <- prop.fit
     }
-    if (method == "SuperLearner") {
-        library(SuperLearner)
-        sl.fit <- SuperLearner(Y=A, X=as.data.frame(W.propensity), family='binomial',
-                               SL.library=SL.library, method = "method.NNloglik")
-        ret$g.hats <- sl.fit$SL.predict
-        ret$SL.coef <- sl.fit$coef
-    }
-    ret$propensity.method <- method
     return(ret)
 }

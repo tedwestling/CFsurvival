@@ -3,7 +3,7 @@ Type: Package
 Title: Counterfactual Survival Analysis
 Version: 0.1.0
 Author: Ted Westling
-Maintainer: Ted Westling <tgwest@pennmedicine.upenn.edu>
+Maintainer: Ted Westling <twestling@math.umass.edu>
 Description: CFsurvival computes covariate-adjusted survival curves,
     contrasts of survival curves, and inference using the methods 
     of ADD CITATION.
@@ -15,4 +15,4 @@ Suggests:
     randomForestSRC,
     SuperLearner,
     ggplot2
-RoxygenNote: 6.1.0
+RoxygenNote: 6.1.1
