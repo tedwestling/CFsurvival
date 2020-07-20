@@ -34,7 +34,7 @@ CFsurvival(time, event, treat, confounders,
 \item{verbose}{Logical indicating whether progress should be printed to the command line.}
 }
 \value{
-\code{CFsurvfit} returns a named list with the following elements:
+\code{CFsurvival} returns a named list with the following elements:
 \item{fit.times}{The time points at which the counterfactual survival curves (and contrasts) were fit.}
 \item{surv.df}{A data frame with the estimated counterfactual survival functions and CIs.}
 \item{IF.vals.0, IF.vals.1}{n x k matrices with the influence values for the counterfactual survival functions. Rows index observations, columns index time points.}
@@ -77,8 +77,10 @@ obs.time <- pmin(event.time, cens.time)
 obs.event <- as.numeric(event.time <= cens.time)
 
 # Estimate the CF survivals
-fit <- CFsurvfit(time=obs.time, event=obs.event, treat=rx, confounders = data.frame(covar), contrasts = c("surv.diff", "surv.ratios", "risk.ratios", "nnt"), verbose=TRUE)
-
+fit <- CFsurvival(time = obs.time, event = obs.event, treat = rx, confounders =  data.frame(covar), contrasts = NULL, verbose = TRUE, fit.times = seq(0, 14.5, by=.1), fit.treat = c(0,1),
+nuisance.options = list(prop.SL.library = c("SL.mean", "SL.bayesglm"),
+                       event.SL.library = c("survSL.km", "survSL.coxph", "survSL.weibreg", "survSL.expreg"),
+                       cens.SL.library = c("survSL.km", "survSL.coxph", "survSL.weibreg", "survSL.expreg"), #' cross.fit =TRUE, V = 5, save.nuis.fits = FALSE), conf.band = TRUE, conf.level = .95)
 # It is a good idea to check the min/max of the propensity estimates and the min of the censoring estimates
 # If they are very small, there may be positivity violations, which may result in invalid inference.
 min(fit$g.hats)

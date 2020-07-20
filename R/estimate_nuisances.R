@@ -6,9 +6,9 @@
     } else {
         newAW <- cbind(A=fit.treat, newW)
     }
-    library(surv.SuperLearner)
+    library(survSuperLearner)
 
-    fit <- surv.SuperLearner(time = Y, event = Delta,  X = AW, newX = newAW, new.times = fit.times, event.SL.library = event.SL.library, cens.SL.library = cens.SL.library, verbose=verbose, control = list(saveFitLibrary = save.fit))
+    fit <- survSuperLearner(time = Y, event = Delta,  X = AW, newX = newAW, new.times = fit.times, event.SL.library = event.SL.library, cens.SL.library = cens.SL.library, verbose=verbose, control = list(saveFitLibrary = save.fit))
     if(save.fit) ret$surv.fit <- fit
     if(0 %in% fit.treat) {
         ret$event.pred.0 <- fit$event.SL.predict[1:nrow(newW),]

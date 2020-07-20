@@ -5,14 +5,13 @@
 \title{Initialize options for nuisance estimation}
 \usage{
 CFsurvival.nuisance.options(cross.fit = TRUE, V = 10, folds = NULL,
-  save.nuis.fits = FALSE, event.SL.library = lapply(c("surv.SL.km",
-  "surv.SL.coxph", "surv.SL.expreg", "surv.SL.weibreg",
-  "surv.SL.loglogreg", "surv.SL.gam", "surv.SL.rfsrc"), function(alg)
-  c(alg, "surv.screen.glmnet", "surv.screen.marg", "All")),
-  event.pred.0 = NULL, event.pred.1 = NULL,
-  cens.SL.library = lapply(c("surv.SL.km", "surv.SL.coxph",
-  "surv.SL.expreg", "surv.SL.weibreg", "surv.SL.loglogreg", "surv.SL.gam",
-  "surv.SL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet",
+  save.nuis.fits = FALSE, event.SL.library = lapply(c("survSL.km",
+  "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg",
+  "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet",
+  "surv.screen.marg", "All")), event.pred.0 = NULL,
+  event.pred.1 = NULL, cens.SL.library = lapply(c("survSL.km",
+  "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg",
+  "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet",
   "surv.screen.marg", "All")), cens.pred.0 = NULL, cens.pred.1 = NULL,
   prop.SL.library = lapply(c("SL.mean", "SL.bayesglm", "SL.gam",
   "SL.earth", "SL.ranger", "SL.xgboost"), function(alg) c(alg,
@@ -27,13 +26,13 @@ CFsurvival.nuisance.options(cross.fit = TRUE, V = 10, folds = NULL,
 
 \item{save.nuis.fits}{Logical indicating whether to save the fitted nuisance objects.}
 
-\item{event.SL.library}{The library of candidate learners to be passed on to \code{\link[surv.SuperLearner]{surv.SuperLearner}} to estimate the conditional survival of the event. If only a single learner is provided(e.g. \code{surv.SL.km} for Kaplan-Meier estimator, \code{surv.SL.coxph} for Cox model, or \code{surv.SL.rfsrc} for survival random forest), then just this learner will be used, and no super learning will be performed. Defaults to a full library with screening and all algorithms currently implemented in \code{surv.SuperLearner}. If \code{event.SL.library = NULL}, then \code{event.pred.0} and/or \code{event.pred.1} must be specified.}
+\item{event.SL.library}{The library of candidate learners to be passed on to \code{\link[survSuperLearner]{survSuperLearner}} to estimate the conditional survival of the event. If only a single learner is provided(e.g. \code{survSL.km} for Kaplan-Meier estimator, \code{survSL.coxph} for Cox model, or \code{survSL.rfsrc} for survival random forest), then just this learner will be used, and no super learning will be performed. Defaults to a full library with screening and all algorithms currently implemented in \code{survSuperLearner}. If \code{event.SL.library = NULL}, then \code{event.pred.0} and/or \code{event.pred.1} must be specified.}
 
 \item{event.pred.0}{Optional \code{n x k} matrix of estimates of the conditional survival of the event given treatment = 0 and confounders. If \code{event.SL.library = NULL} and \code{0 \%in\% fit.treat}, then \code{event.pred.0} must be specified. If \code{event.SL.library} is not \code{NULL}, then \code{event.pred.0 } is ignored.}
 
 \item{event.pred.1}{Optional \code{n x k} matrix of estimates of the conditional survival of the event given treatment = 1 and confounders. If \code{event.SL.library = NULL} and \code{1 \%in\% fit.treat}, then \code{event.pred.1} must be specified. If \code{event.SL.library} is not \code{NULL}, then \code{event.pred.1 } is ignored.}
 
-\item{cens.SL.library}{The library of candidate learners to estimate the conditional survival of censoring. As with \code{event.SL.library}, single learners can be specified. Defaults to a full library with screening and all algorithms currently implemented in \code{surv.SuperLearner}. If \code{cens.SL.library = NULL}, then \code{cens.pred.0} and/or \code{cens.pred.1} must be specified.}
+\item{cens.SL.library}{The library of candidate learners to estimate the conditional survival of censoring. As with \code{event.SL.library}, single learners can be specified. Defaults to a full library with screening and all algorithms currently implemented in \code{survSuperLearner}. If \code{cens.SL.library = NULL}, then \code{cens.pred.0} and/or \code{cens.pred.1} must be specified.}
 
 \item{cens.pred.0}{Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 0 and confounders. If \code{cens.SL.library = NULL} and \code{0 \%in\% fit.treat}, then \code{cens.pred.0} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.0 } is ignored.}
 
@@ -44,5 +43,5 @@ CFsurvival.nuisance.options(cross.fit = TRUE, V = 10, folds = NULL,
 \item{prop.pred}{Optional \code{n x 1} numeric vector of estimated probabilities that \code{treat = 1} given the confounders. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be specified, otherwise it is ignored.}
 }
 \description{
-This function initializes the options for nuisance parameter estimation (i.e. conditional survivals of event and censoring and treatment propensity) for use in \code{CFsurvfit}. The conditional survivals of event and censoring are estimated using \code{\link[surv.SuperLearner]{surv.SuperLearner}}, or any of the individual learners therein. Treatment propensity is estimated using the \code{\link[SuperLearner]{SuperLearner}}, or any of the individual learners therein. Alternatively, the estimation process can be overriden by providing predictions from pre-fit nuisance estimators.
+This function initializes the options for nuisance parameter estimation (i.e. conditional survivals of event and censoring and treatment propensity) for use in \code{CFsurvival}. The conditional survivals of event and censoring are estimated using \code{\link[survSuperLearner]{survSuperLearner}}, or any of the individual learners therein. Treatment propensity is estimated using the \code{\link[SuperLearner]{SuperLearner}}, or any of the individual learners therein. Alternatively, the estimation process can be overriden by providing predictions from pre-fit nuisance estimators.
 }

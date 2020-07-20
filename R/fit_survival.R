@@ -1,8 +1,3 @@
-# To do
-# Use surv.SuperLearner for nuisance estimation
-# Cross-fitting
-# Update CIs & CBs
-
 #' Estimate counterfactual survival functions
 #'
 #' This function estimates counterfactual survival functions and contrasts from right-censored data subject to potential confounding.
@@ -22,7 +17,7 @@
 #' @param conf.level Desired coverage of confidence intervals/bands.
 #' @param contrasts Character vector indicating which (if any) contrasts of the survival functions are desired. Can include \code{"surv.diff"} (difference of survival functions), \code{"surv.ratio"} (ratio of survival functions), \code{"risk.ratio"} (ratio of the risk functions), or \code{"nnt"} (number needed to treat; i.e. recipricol of survival difference). If not \code{NULL}, then \code{fit.treat} must be \code{c(0,1)}. Defaults to \code{c("surv.diff", "surv.ratio")}.
 #' @param verbose Logical indicating whether progress should be printed to the command line.
-#' @return \code{CFsurvfit} returns a named list with the following elements:
+#' @return \code{CFsurvival} returns a named list with the following elements:
 #' \item{fit.times}{The time points at which the counterfactual survival curves (and contrasts) were fit.}
 #' \item{surv.df}{A data frame with the estimated counterfactual survival functions and CIs.}
 #' \item{IF.vals.0, IF.vals.1}{n x k matrices with the influence values for the counterfactual survival functions. Rows index observations, columns index time points.}
@@ -56,8 +51,11 @@
 #' obs.event <- as.numeric(event.time <= cens.time)
 #'
 #' # Estimate the CF survivals
-#' fit <- CFsurvfit(time=obs.time, event=obs.event, treat=rx, confounders = data.frame(covar), contrasts = c("surv.diff", "surv.ratios", "risk.ratios", "nnt"), verbose=TRUE)
-#'
+#' fit <- CFsurvival(time = obs.time, event = obs.event, treat = rx, confounders =  data.frame(covar), contrasts = NULL, verbose = TRUE, fit.times = seq(0, 14.5, by=.1), fit.treat = c(0,1),
+#' nuisance.options = list(prop.SL.library = c("SL.mean", "SL.bayesglm"),
+#'                        event.SL.library = c("survSL.km", "survSL.coxph", "survSL.weibreg", "survSL.expreg"),
+#'                        cens.SL.library = c("survSL.km", "survSL.coxph", "survSL.weibreg", "survSL.expreg"), #' cross.fit =TRUE, V = 5, save.nuis.fits = FALSE), conf.band = TRUE, conf.level = .95)
+
 #' # It is a good idea to check the min/max of the propensity estimates and the min of the censoring estimates
 #' # If they are very small, there may be positivity violations, which may result in invalid inference.
 #' min(fit$g.hats)
@@ -145,9 +143,9 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
     nuis <- do.call("CFsurvival.nuisance.options", nuisance.options)
 
     n <- length(time)
-    k <- length(fit.times)
+
     if(sum(1-event) == 0) {
-        warning("No censored events; unanticipated errors may occur.")
+        message("No censored events; unanticipated errors may occur.")
         nuis$cens.pred.0 <- nuis$cens.pred.1 <- matrix(1, nrow=n, ncol=k)
     }
     if(sum(event) == 0) {
@@ -156,7 +154,7 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
 
     if(!nuis$cross.fit) {
         if(!is.null(nuis$folds) | nuis$V > 1) {
-            warning("nuisance.options$cross.fit set to FALSE, but V > 1 or folds specified. Cross-fitting will not be performed.")
+            message("nuisance.options$cross.fit set to FALSE, but V > 1 or folds specified. Cross-fitting will not be performed.")
         }
         nuis$V <- 1
         nuis$folds <- rep(1, n)
@@ -168,12 +166,12 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
     if(nuis$cross.fit & is.null(nuis$folds)) {
         while (sum(event) < nuis$V | sum(1-event) < nuis$V) {
             if (nuis$V == 1) {
-                warning("Cannot perform cross-fitting with one uncensored event.")
+                message("Cannot perform cross-fitting with one uncensored event.")
                 nuis$cross.fit <- FALSE
                 nuis$V <- 1
                 break
             }
-            warning(paste0("Number of (event = 1) or (event = 0) is less than the number of folds; reducing number of folds to ", nuis$V-1))
+            message(paste0("Number of (event = 1) or (event = 0) is less than the number of folds; reducing number of folds to ", nuis$V-1))
             nuis$V <- nuis$V-1
         }
         event.0 <- which(event == 0)
@@ -192,12 +190,14 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
 
     if(any(fit.times <= 0)) {
         fit.times <- fit.times[fit.times > 0]
-        warning("fit.times <= 0 removed.")
+        message("fit.times <= 0 removed.")
     }
     if(any(fit.times > max(time[event == 1]))) {
         fit.times <- fit.times[fit.times <= max(time[event == 1])]
-        warning("fit.times > max(time[event == 1]) removed.")
+        message("fit.times > max(time[event == 1]) removed.")
     }
+    k <- length(fit.times)
+
     confounders <- as.data.frame(confounders)
 
     surv.df <- data.frame()
@@ -254,10 +254,10 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
                 train <- nuis$fold != v
                 test <- nuis$fold == v
                 surv.fit <- .estimate.conditional.survival(Y=time[train], Delta=event[train], A=treat[train], W=confounders[train,, drop=FALSE], newW=confounders[test,, drop=FALSE], event.SL.library=nuis$event.SL.library, fit.times=fit.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
-                if(do.event.pred.0) nuis$event.pred.0[test] <- surv.fit$event.pred.0
-                if(do.event.pred.1) nuis$event.pred.1[test] <- surv.fit$event.pred.1
-                if(do.cens.pred.0) nuis$cens.pred.0[test] <- surv.fit$cens.pred.0
-                if(do.cens.pred.1) nuis$cens.pred.1[test] <- surv.fit$cens.pred.1
+                if(do.event.pred.0) nuis$event.pred.0[test,] <- surv.fit$event.pred.0
+                if(do.event.pred.1) nuis$event.pred.1[test,] <- surv.fit$event.pred.1
+                if(do.cens.pred.0) nuis$cens.pred.0[test,] <- surv.fit$cens.pred.0
+                if(do.cens.pred.1) nuis$cens.pred.1[test,] <- surv.fit$cens.pred.1
                 if(nuis$save.nuis.fits) result$surv.fits[[v]] <- surv.fit$surv.fit
             }
         } else {
@@ -358,24 +358,24 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
 
 #' Initialize options for nuisance estimation
 #'
-#' This function initializes the options for nuisance parameter estimation (i.e. conditional survivals of event and censoring and treatment propensity) for use in \code{CFsurvfit}. The conditional survivals of event and censoring are estimated using \code{\link[surv.SuperLearner]{surv.SuperLearner}}, or any of the individual learners therein. Treatment propensity is estimated using the \code{\link[SuperLearner]{SuperLearner}}, or any of the individual learners therein. Alternatively, the estimation process can be overriden by providing predictions from pre-fit nuisance estimators.
+#' This function initializes the options for nuisance parameter estimation (i.e. conditional survivals of event and censoring and treatment propensity) for use in \code{CFsurvival}. The conditional survivals of event and censoring are estimated using \code{\link[survSuperLearner]{survSuperLearner}}, or any of the individual learners therein. Treatment propensity is estimated using the \code{\link[SuperLearner]{SuperLearner}}, or any of the individual learners therein. Alternatively, the estimation process can be overriden by providing predictions from pre-fit nuisance estimators.
 #'
 #' @param cross.fit Logical indicating whether to cross-fit nuisance parameters. Defaults to \code{TRUE}.
 #' @param V Positive integer number of folds for cross-fitting. Defaults to 10.
 #' @param folds Optional \code{n x 1} vector indicating which fold each observation is in. If \code{NULL}, folds will be randomly assigned in such a way to balance observed events across folds.
 #' @param save.nuis.fits Logical indicating whether to save the fitted nuisance objects.
-#' @param event.SL.library The library of candidate learners to be passed on to \code{\link[surv.SuperLearner]{surv.SuperLearner}} to estimate the conditional survival of the event. If only a single learner is provided(e.g. \code{surv.SL.km} for Kaplan-Meier estimator, \code{surv.SL.coxph} for Cox model, or \code{surv.SL.rfsrc} for survival random forest), then just this learner will be used, and no super learning will be performed. Defaults to a full library with screening and all algorithms currently implemented in \code{surv.SuperLearner}. If \code{event.SL.library = NULL}, then \code{event.pred.0} and/or \code{event.pred.1} must be specified.
+#' @param event.SL.library The library of candidate learners to be passed on to \code{\link[survSuperLearner]{survSuperLearner}} to estimate the conditional survival of the event. If only a single learner is provided(e.g. \code{survSL.km} for Kaplan-Meier estimator, \code{survSL.coxph} for Cox model, or \code{survSL.rfsrc} for survival random forest), then just this learner will be used, and no super learning will be performed. Defaults to a full library with screening and all algorithms currently implemented in \code{survSuperLearner}. If \code{event.SL.library = NULL}, then \code{event.pred.0} and/or \code{event.pred.1} must be specified.
 #' @param event.pred.0 Optional \code{n x k} matrix of estimates of the conditional survival of the event given treatment = 0 and confounders. If \code{event.SL.library = NULL} and \code{0 \%in\% fit.treat}, then \code{event.pred.0} must be specified. If \code{event.SL.library} is not \code{NULL}, then \code{event.pred.0 } is ignored.
 #' @param event.pred.1 Optional \code{n x k} matrix of estimates of the conditional survival of the event given treatment = 1 and confounders. If \code{event.SL.library = NULL} and \code{1 \%in\% fit.treat}, then \code{event.pred.1} must be specified. If \code{event.SL.library} is not \code{NULL}, then \code{event.pred.1 } is ignored.
-#' @param cens.SL.library The library of candidate learners to estimate the conditional survival of censoring. As with \code{event.SL.library}, single learners can be specified. Defaults to a full library with screening and all algorithms currently implemented in \code{surv.SuperLearner}. If \code{cens.SL.library = NULL}, then \code{cens.pred.0} and/or \code{cens.pred.1} must be specified.
+#' @param cens.SL.library The library of candidate learners to estimate the conditional survival of censoring. As with \code{event.SL.library}, single learners can be specified. Defaults to a full library with screening and all algorithms currently implemented in \code{survSuperLearner}. If \code{cens.SL.library = NULL}, then \code{cens.pred.0} and/or \code{cens.pred.1} must be specified.
 #' @param cens.pred.0 Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 0 and confounders. If \code{cens.SL.library = NULL} and \code{0 \%in\% fit.treat}, then \code{cens.pred.0} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.0 } is ignored.
 #' @param cens.pred.1 Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 1 and confounders. If \code{cens.SL.library = NULL} and \code{1 \%in\% fit.treat}, then \code{cens.pred.1} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.1} is ignored.
 #' @param prop.SL.library The library to use for estimation of the treatment propensities using \code{\link[SuperLearner]{SuperLearner}}. If only a single learner is provided(e.g. \code{SL.mean} for marginal mean, \code{SL.glm} for logistic regression, or \code{SL.ranger} for random forest), then just this learner will be used, and no super learning will be performed. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be provided.
 #' @param prop.pred Optional \code{n x 1} numeric vector of estimated probabilities that \code{treat = 1} given the confounders. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be specified, otherwise it is ignored.
 #'
 CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = 10, folds = NULL, save.nuis.fits = FALSE,
-                                        event.SL.library = lapply(c("surv.SL.km", "surv.SL.coxph", "surv.SL.expreg", "surv.SL.weibreg", "surv.SL.loglogreg", "surv.SL.gam", "surv.SL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet", "surv.screen.marg", "All") ),  event.pred.0 = NULL, event.pred.1 = NULL,
-                                        cens.SL.library = lapply(c("surv.SL.km", "surv.SL.coxph", "surv.SL.expreg", "surv.SL.weibreg", "surv.SL.loglogreg", "surv.SL.gam", "surv.SL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet", "surv.screen.marg", "All") ),  cens.pred.0 = NULL, cens.pred.1 = NULL,
+                                        event.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet", "surv.screen.marg", "All") ),  event.pred.0 = NULL, event.pred.1 = NULL,
+                                        cens.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet", "surv.screen.marg", "All") ),  cens.pred.0 = NULL, cens.pred.1 = NULL,
                                         prop.SL.library = lapply(c("SL.mean", "SL.bayesglm", "SL.gam", "SL.earth", "SL.ranger", "SL.xgboost"), function(alg) c(alg, "screen.glmnet", "screen.corRank", "All") ), prop.pred = NULL) {
     list(cross.fit = cross.fit, V = V, folds = folds, save.nuis.fits = save.nuis.fits,
          event.SL.library = event.SL.library, event.pred.0 = event.pred.0, event.pred.1 = event.pred.1,
