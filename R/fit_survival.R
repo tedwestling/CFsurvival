@@ -1,3 +1,6 @@
+# TODO:
+#  CIs/CBs for contrasts
+#  Left-continuous cens survival
 #' Estimate counterfactual survival functions
 #'
 #' This function estimates counterfactual survival functions and contrasts from right-censored data subject to potential confounding.
@@ -30,6 +33,7 @@
 #' \item{event.pred.0, event.pred.1}{The estimated conditional survival functions of the event.}
 #' \item{cens.pred.0, censd.pred.1}{The estimated conditional survival functions of censoring.}
 #' \item{data}{The original time, event, and treatment data supplied to the function.}
+#' @details \code{surv.df$ptwise.lower} and \code{surv.df$ptwise.upper} are lower and upper endpoints of back-transformed pointwise confidence intervals on the logit scale. Pointwise confidence intervals are only provided for values of \code{fit.times} that are at least as large as the smallest observed event time in the corresponding treatment cohort. \code{surv.df$unif.ew.lower} and \code{surv.df$unif.ew.upper} are lower and upper endpoints of an equal-width confidence band. \code{surv.df$unif.logit.lower} and \code{surv.df$unif.logit.upper} are lower and upper endpoints of an equi-precision confidence band on the logit scale, and trasformed back to the survival scale. This confidence band only covers values of \code{fit.times} such that the corresponding estimated survival function is \code{<= .99} and \code{>= .01}.
 #' @examples
 #' # Define parameters
 #' n <- 300
@@ -188,10 +192,11 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
     contrasts <- contrasts[contrasts %in% c("surv.diff", "surv.ratio", "risk.ratio", "nnt")]
     .check.input(time=time, event=event, treat=treat, confounders=confounders, fit.times=fit.times, fit.treat=fit.treat, nuisance.options=nuis, conf.band=conf.band, conf.level=conf.level, contrasts=contrasts, verbose=verbose)
 
-    if(any(fit.times <= 0)) {
+    if(any(fit.times < 0)) {
         fit.times <- fit.times[fit.times > 0]
-        message("fit.times <= 0 removed.")
+        message("fit.times < 0 removed.")
     }
+    if(any(fit.times == 0)) fit.times <- fit.times[fit.times > 0]
     if(any(fit.times > max(time[event == 1]))) {
         fit.times <- fit.times[fit.times <= max(time[event == 1])]
         message("fit.times > max(time[event == 1]) removed.")
@@ -271,18 +276,23 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
     }
 
     #### ESTIMATE CF SURVIVALS ####
-    q.025 <- quantile(time[event == 1], .025)
-    q.975 <- quantile(time[event == 1], .975)
     if(verbose) message("Computing counterfactual survivals...")
     if(0 %in% fit.treat) {
         surv.0 <- .get.survival(Y=time, Delta=event, A=1-treat, times=fit.times, S.hats=nuis$event.pred.0, G.hats=nuis$cens.pred.0, g.hats=1-nuis$prop.pred)
         surv.df.0 <- data.frame(time=c(0,fit.times), trt=0, surv=c(1, surv.0$surv.iso))
         result$IF.vals.0 <- surv.0$IF.vals
 
-        c.int <- .surv.confints(fit.times, surv.0$surv, surv.0$IF.vals, conf.band = conf.band, band.end.pts = c(q.025, q.975), conf.level=conf.level)
+        q.01 <- min(fit.times[surv.0$surv <= .99])
+        q.99 <- max(fit.times[surv.0$surv >= .01])
+        min.obs.time <- min(time[event == 1 & treat == 0])
+
+        c.int <- .surv.confints(fit.times, surv.0$surv, surv.0$IF.vals, conf.band = conf.band, band.end.pts = c(q.01, q.99), conf.level=conf.level)
         surv.df.0$se <- c(0,c.int$res$se)
+        surv.df.0$se.logit <- c(0,c.int$res$se.logit)
         surv.df.0$ptwise.lower <- c(1,c.int$res$ptwise.lower)
         surv.df.0$ptwise.upper <- c(1,c.int$res$ptwise.upper)
+
+        surv.df.0$se[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- surv.df.0$se.logit[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- surv.df.0$ptwise.lower[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- surv.df.0$ptwise.upper[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- NA
 
         if(conf.band) {
             surv.df.0$unif.ew.lower <- c(1,c.int$res$unif.ew.lower)
@@ -303,10 +313,17 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
         surv.df.1 <- data.frame(time=c(0,fit.times), trt=1, surv=c(1, surv.1$surv.iso))
         result$IF.vals.1 <- surv.1$IF.vals
 
-        c.int <- .surv.confints(fit.times, surv.1$surv, surv.1$IF.vals, conf.band = conf.band, band.end.pts = c(q.025, q.975), conf.level=conf.level)
+        q.01 <- min(fit.times[surv.1$surv <= .99])
+        q.99 <- max(fit.times[surv.1$surv >= .01])
+        min.obs.time <- min(time[event == 1 & treat == 1])
+
+        c.int <- .surv.confints(fit.times, surv.1$surv, surv.1$IF.vals, conf.band = conf.band, band.end.pts = c(q.01, q.99), conf.level=conf.level)
         surv.df.1$se <- c(0,c.int$res$se)
+        surv.df.1$se.logit <- c(0,c.int$res$se.logit)
         surv.df.1$ptwise.lower <- c(1,c.int$res$ptwise.lower)
         surv.df.1$ptwise.upper <- c(1,c.int$res$ptwise.upper)
+
+        surv.df.1$se[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- surv.df.1$se.logit[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- surv.df.1$ptwise.lower[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- surv.df.1$ptwise.upper[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- NA
 
         if(conf.band) {
             surv.df.1$unif.ew.lower <- c(1,c.int$res$unif.ew.lower)
@@ -372,7 +389,7 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
 #' @param cens.pred.1 Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 1 and confounders. If \code{cens.SL.library = NULL} and \code{1 \%in\% fit.treat}, then \code{cens.pred.1} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.1} is ignored.
 #' @param prop.SL.library The library to use for estimation of the treatment propensities using \code{\link[SuperLearner]{SuperLearner}}. If only a single learner is provided(e.g. \code{SL.mean} for marginal mean, \code{SL.glm} for logistic regression, or \code{SL.ranger} for random forest), then just this learner will be used, and no super learning will be performed. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be provided.
 #' @param prop.pred Optional \code{n x 1} numeric vector of estimated probabilities that \code{treat = 1} given the confounders. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be specified, otherwise it is ignored.
-#'
+#' @return Named list containing the nuisance options.
 CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = 10, folds = NULL, save.nuis.fits = FALSE,
                                         event.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet", "surv.screen.marg", "All") ),  event.pred.0 = NULL, event.pred.1 = NULL,
                                         cens.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet", "surv.screen.marg", "All") ),  cens.pred.0 = NULL, cens.pred.1 = NULL,
@@ -490,8 +507,8 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = 10, folds = NULL, 
     # Raw intervals and bands based on un-isotonized survival ests
     res$ptwise.lower <- expit(logit(est) - quant * res$se.logit) #pmax(est - quant * res$se, 0)
     res$ptwise.upper <- expit(logit(est) + quant * res$se.logit) #pmin(est + quant * res$se, 1)
-    res$ptwise.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$ptwise.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
-    res$ptwise.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$ptwise.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+    # res$ptwise.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$ptwise.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+    # res$ptwise.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$ptwise.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
 
 
     # Isotonized intervals and bands
@@ -507,8 +524,8 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = 10, folds = NULL, 
         out$unif.ew.quant <- unif.quant
         res$unif.ew.lower <- pmax(est - unif.quant / sqrt(n), 0)
         res$unif.ew.upper <- pmin(est + unif.quant / sqrt(n), 1)
-        res$unif.ew.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$unif.ew.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
-        res$unif.ew.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$unif.ew.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+        #res$unif.ew.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$unif.ew.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+        #res$unif.ew.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$unif.ew.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
         if(isotonize) {
             res$unif.ew.lower[!is.na(res$unif.ew.lower)] <- 1 - isoreg(times[!is.na(res$unif.ew.lower)], 1-res$unif.ew.lower[!is.na(res$unif.ew.lower)])$yf
             res$unif.ew.upper[!is.na(res$unif.ew.upper)] <- 1 - isoreg(times[!is.na(res$unif.ew.upper)], 1-res$unif.ew.upper[!is.na(res$unif.ew.upper)])$yf

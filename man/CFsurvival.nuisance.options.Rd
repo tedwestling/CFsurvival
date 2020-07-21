@@ -42,6 +42,9 @@ CFsurvival.nuisance.options(cross.fit = TRUE, V = 10, folds = NULL,
 
 \item{prop.pred}{Optional \code{n x 1} numeric vector of estimated probabilities that \code{treat = 1} given the confounders. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be specified, otherwise it is ignored.}
 }
+\value{
+Named list containing the nuisance options.
+}
 \description{
 This function initializes the options for nuisance parameter estimation (i.e. conditional survivals of event and censoring and treatment propensity) for use in \code{CFsurvival}. The conditional survivals of event and censoring are estimated using \code{\link[survSuperLearner]{survSuperLearner}}, or any of the individual learners therein. Treatment propensity is estimated using the \code{\link[SuperLearner]{SuperLearner}}, or any of the individual learners therein. Alternatively, the estimation process can be overriden by providing predictions from pre-fit nuisance estimators.
 }
