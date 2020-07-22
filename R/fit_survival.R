@@ -232,7 +232,7 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
         }
     }
 
-    #### ESTIMATE EVENT SURVIVALS ####
+    #### ESTIMATE CONDITIONAL SURVIVALS ####
 
     if((1 %in% fit.treat & (is.null(nuis$event.pred.1) | is.null(nuis$cens.pred.1))) | (0 %in% fit.treat & (is.null(nuis$event.pred.0) | is.null(nuis$cens.pred.0)))) {
         if(verbose) message("Estimating conditional survivals...")
@@ -289,10 +289,13 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
         c.int <- .surv.confints(fit.times, surv.0$surv, surv.0$IF.vals, conf.band = conf.band, band.end.pts = c(q.01, q.99), conf.level=conf.level)
         surv.df.0$se <- c(0,c.int$res$se)
         surv.df.0$se.logit <- c(0,c.int$res$se.logit)
+        surv.df.0$se.H <- c(0,c.int$res$se.H)
         surv.df.0$ptwise.lower <- c(1,c.int$res$ptwise.lower)
         surv.df.0$ptwise.upper <- c(1,c.int$res$ptwise.upper)
+        surv.df.0$ptwise.H.lower <- c(1,c.int$res$ptwise.H.lower)
+        surv.df.0$ptwise.H.upper <- c(1,c.int$res$ptwise.H.upper)
 
-        surv.df.0$se[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- surv.df.0$se.logit[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- surv.df.0$ptwise.lower[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- surv.df.0$ptwise.upper[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- NA
+        #surv.df.0$se[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- surv.df.0$se.logit[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- surv.df.0$ptwise.lower[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- surv.df.0$ptwise.upper[surv.df.0$time < min.obs.time & surv.df.0$time > 0] <- NA
 
         if(conf.band) {
             surv.df.0$unif.ew.lower <- c(1,c.int$res$unif.ew.lower)
@@ -304,6 +307,11 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
             surv.df.0$unif.logit.upper <- c(1,c.int$res$unif.logit.upper)
             result$surv.0.unif.logit.quant <- c.int$unif.logit.quant
             result$surv.0.logit.sim.maxes <- c.int$logit.sim.maxes
+
+            surv.df.0$unif.H.lower <- c(1,c.int$res$unif.H.lower)
+            surv.df.0$unif.H.upper <- c(1,c.int$res$unif.H.upper)
+            result$surv.0.unif.H.quant <- c.int$unif.H.quant
+            result$surv.0.H.sim.maxes <- c.int$H.sim.maxes
         }
         result$surv.df <- rbind(result$surv.df, surv.df.0)
     }
@@ -320,10 +328,13 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
         c.int <- .surv.confints(fit.times, surv.1$surv, surv.1$IF.vals, conf.band = conf.band, band.end.pts = c(q.01, q.99), conf.level=conf.level)
         surv.df.1$se <- c(0,c.int$res$se)
         surv.df.1$se.logit <- c(0,c.int$res$se.logit)
+        surv.df.1$se.H <- c(0,c.int$res$se.H)
         surv.df.1$ptwise.lower <- c(1,c.int$res$ptwise.lower)
         surv.df.1$ptwise.upper <- c(1,c.int$res$ptwise.upper)
+        surv.df.1$ptwise.H.lower <- c(1,c.int$res$ptwise.H.lower)
+        surv.df.1$ptwise.H.upper <- c(1,c.int$res$ptwise.H.upper)
 
-        surv.df.1$se[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- surv.df.1$se.logit[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- surv.df.1$ptwise.lower[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- surv.df.1$ptwise.upper[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- NA
+        #surv.df.1$se[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- surv.df.1$se.logit[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- surv.df.1$ptwise.lower[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- surv.df.1$ptwise.upper[surv.df.1$time < min.obs.time & surv.df.1$time > 0] <- NA
 
         if(conf.band) {
             surv.df.1$unif.ew.lower <- c(1,c.int$res$unif.ew.lower)
@@ -335,6 +346,11 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
             surv.df.1$unif.logit.upper <- c(1,c.int$res$unif.logit.upper)
             result$surv.1.unif.logit.quant <- c.int$unif.logit.quant
             result$surv.1.logit.sim.maxes <- c.int$logit.sim.maxes
+
+            surv.df.1$unif.H.lower <- c(1,c.int$res$unif.H.lower)
+            surv.df.1$unif.H.upper <- c(1,c.int$res$unif.H.upper)
+            result$surv.1.unif.H.quant <- c.int$unif.H.quant
+            result$surv.1.H.sim.maxes <- c.int$H.sim.maxes
         }
         result$surv.df <- rbind(result$surv.df, surv.df.1)
     }
@@ -486,13 +502,22 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = 10, folds = NULL, 
     logit.prime <- function(x) 1/(x * (1-x))
     expit <- function(x) 1/(1 + exp(-x))
 
+    H <- function(x) pi - 2 * atan(sqrt((1-x) / x))
+    Hinv <- function(u) ifelse(u <= 0, 0, ifelse(u >= pi, 1, 1 / (1 + (tan((pi-u) / 2))^2)))
+    Hprime <- function(x) 1/ sqrt(x * (1-x))
+
+
     n <- nrow(IF.vals)
     in.bounds <- est > 0 & est < 1
     IF.vals.logit <- IF.vals
     for(j in 1:length(est)) IF.vals.logit[,j] <- IF.vals[,j] * logit.prime(est[j])
 
+    IF.vals.H<- IF.vals
+    for(j in 1:length(est)) IF.vals.H[,j] <- IF.vals[,j] * Hprime(est[j])
+
     res <- NULL
     res$se <- sqrt(colMeans(IF.vals^2)) / sqrt(n)
+    res$se.H <- sqrt(colMeans(IF.vals.H^2)) / sqrt(n)
     res$se.logit <- sqrt(colMeans(IF.vals.logit^2)) / sqrt(n)
     # # For SEs that are NA
     # for(j in which(is.na(res$se) | res$se == 0)) {
@@ -501,21 +526,26 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = 10, folds = NULL, 
     #     }
     # }
     res$se[res$se == 0] <- NA
+    res$se.H[res$se.H == 0 | is.infinite(res$se.H)] <- NA
     res$se.logit[is.infinite(res$se.logit)] <- NA
     quant <- qt(1-(1-conf.level)/2, n - 1) #qnorm(1-(1-conf.level)/2)
 
     # Raw intervals and bands based on un-isotonized survival ests
     res$ptwise.lower <- expit(logit(est) - quant * res$se.logit) #pmax(est - quant * res$se, 0)
     res$ptwise.upper <- expit(logit(est) + quant * res$se.logit) #pmin(est + quant * res$se, 1)
+    res$ptwise.H.lower <- pmax(Hinv(H(est) - quant * res$se.H), 0) #pmax(est - quant * res$se, 0)
+    res$ptwise.H.upper <- pmin(Hinv(H(est) + quant * res$se.H), 1)
     # res$ptwise.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$ptwise.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
     # res$ptwise.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$ptwise.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
 
 
     # Isotonized intervals and bands
-    if(isotonize) {
-        res$ptwise.lower[!is.na(res$ptwise.lower)] <- 1 - isoreg(times[!is.na(res$ptwise.lower)], 1-res$ptwise.lower[!is.na(res$ptwise.lower)])$yf
-        res$ptwise.upper[!is.na(res$ptwise.upper)] <- 1 - isoreg(times[!is.na(res$ptwise.upper)], 1-res$ptwise.upper[!is.na(res$ptwise.upper)])$yf
-    }
+    # if(isotonize) {
+    #     res$ptwise.lower[!is.na(res$ptwise.lower)] <- 1 - isoreg(times[!is.na(res$ptwise.lower)], 1-res$ptwise.lower[!is.na(res$ptwise.lower)])$yf
+    #     res$ptwise.upper[!is.na(res$ptwise.upper)] <- 1 - isoreg(times[!is.na(res$ptwise.upper)], 1-res$ptwise.upper[!is.na(res$ptwise.upper)])$yf
+    #     res$ptwise.H.lower[!is.na(res$ptwise.lower)] <- 1 - isoreg(times[!is.na(res$ptwise.lower)], 1-res$ptwise.lower[!is.na(res$ptwise.lower)])$yf
+    #     res$ptwise.H.upper[!is.na(res$ptwise.upper)] <- 1 - isoreg(times[!is.na(res$ptwise.upper)], 1-res$ptwise.upper[!is.na(res$ptwise.upper)])$yf
+    # }
     out <- NULL
     if(conf.band) {
         unif.vals <- .estimate.uniform.quantile(IF.vals[,!is.na(res$se)], conf.level, scale = FALSE)
@@ -531,12 +561,24 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = 10, folds = NULL, 
             res$unif.ew.upper[!is.na(res$unif.ew.upper)] <- 1 - isoreg(times[!is.na(res$unif.ew.upper)], 1-res$unif.ew.upper[!is.na(res$unif.ew.upper)])$yf
         }
 
+        unif.H.vals <- .estimate.uniform.quantile(IF.vals.H[,!is.na(res$se.H)], conf.level)
+        unif.H.quant <- unif.H.vals$quantile
+        out$H.sim.maxes <- unif.H.vals$maxes
+        out$unif.H.quant <- unif.H.quant
+        res$unif.H.lower <- pmax(Hinv(H(est) - unif.H.quant * res$se.H), 0)
+        res$unif.H.upper <- pmin(Hinv(H(est) + unif.H.quant * res$se.H), 1)
+
+        if(isotonize) {
+            res$unif.H.lower[!is.na(res$unif.H.lower)] <- 1 - isoreg(times[!is.na(res$unif.H.lower)], 1-res$unif.H.lower[!is.na(res$unif.H.lower)])$yf
+            res$unif.H.upper[!is.na(res$unif.H.upper)] <- 1 - isoreg(times[!is.na(res$unif.H.upper)], 1-res$unif.H.upper[!is.na(res$unif.H.upper)])$yf
+        }
+
         unif.logit.vals <- .estimate.uniform.quantile(IF.vals.logit[,!is.na(res$se.logit) & times >= band.end.pts[1] & times <= band.end.pts[2]], conf.level)
         unif.logit.quant <- unif.logit.vals$quantile
         out$logit.sim.maxes <- unif.logit.vals$maxes
         out$unif.logit.quant <- unif.logit.quant
-        res$unif.logit.lower <- expit(logit(est) - unif.quant * res$se.logit) #pmax(est - unif.quant * res$se, 0)
-        res$unif.logit.upper <- expit(logit(est) + unif.quant * res$se.logit) # pmin(est + unif.quant * res$se, 1)
+        res$unif.logit.lower <- expit(logit(est) - unif.logit.quant * res$se.logit) #pmax(est - unif.quant * res$se, 0)
+        res$unif.logit.upper <- expit(logit(est) + unif.logit.quant * res$se.logit) # pmin(est + unif.quant * res$se, 1)
         res$unif.logit.lower[times < band.end.pts[1] | times > band.end.pts[2]] <- NA
         res$unif.logit.upper[times < band.end.pts[1] | times > band.end.pts[2]] <- NA
         # res$unif.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
