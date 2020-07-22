@@ -5,9 +5,10 @@
 \title{Initialize options for nuisance estimation}
 \usage{
 CFsurvival.nuisance.options(cross.fit = TRUE, V = 10, folds = NULL,
-  save.nuis.fits = FALSE, event.SL.library = lapply(c("survSL.km",
-  "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg",
-  "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet",
+  eval.times = NULL, save.nuis.fits = FALSE,
+  event.SL.library = lapply(c("survSL.km", "survSL.coxph",
+  "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam",
+  "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet",
   "surv.screen.marg", "All")), event.pred.0 = NULL,
   event.pred.1 = NULL, cens.SL.library = lapply(c("survSL.km",
   "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg",
@@ -23,6 +24,8 @@ CFsurvival.nuisance.options(cross.fit = TRUE, V = 10, folds = NULL,
 \item{V}{Positive integer number of folds for cross-fitting. Defaults to 10.}
 
 \item{folds}{Optional \code{n x 1} vector indicating which fold each observation is in. If \code{NULL}, folds will be randomly assigned in such a way to balance observed events across folds.}
+
+\item{eval.times}{Grid of time values on which to perform the estimation procedure. Defaults to the sorted unique values in \code{time}.}
 
 \item{save.nuis.fits}{Logical indicating whether to save the fitted nuisance objects.}
 
