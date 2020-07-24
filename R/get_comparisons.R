@@ -24,8 +24,8 @@
     df$se.logit <- c(0, se.diff.logit / sqrt(n))
     ll <- 2 * expit(logit.diff - quant * se.diff.logit / sqrt(n)) - 1
     ul <- 2 * expit(logit.diff + quant * se.diff.logit / sqrt(n)) - 1
-    ll[!in.bounds] <- pmin(approx(fit.times[in.bounds], ll[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
-    ul[!in.bounds] <- pmax(approx(fit.times[in.bounds], ul[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
+    # ll[!in.bounds] <- pmin(approx(fit.times[in.bounds], ll[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
+    # ul[!in.bounds] <- pmax(approx(fit.times[in.bounds], ul[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
     df$ptwise.lower <- c(0, ll)#pmax(est - quant * res$se, 0)
     df$ptwise.upper <- c(0, ul) #pmin(est + quant * res$se, 1)
 
@@ -40,8 +40,8 @@
 
         ll <- 2 * expit(logit.diff - unif.quant * se.diff.logit / sqrt(n)) - 1
         ul <- 2 * expit(logit.diff + unif.quant * se.diff.logit / sqrt(n)) - 1
-        ll[!in.bounds] <- pmin(approx(fit.times[in.bounds], ll[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
-        ul[!in.bounds] <- pmax(approx(fit.times[in.bounds], ul[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
+        # ll[!in.bounds] <- pmin(approx(fit.times[in.bounds], ll[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
+        # ul[!in.bounds] <- pmax(approx(fit.times[in.bounds], ul[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
         df$unif.lower <- c(0, ll)#pmax(est - quant * res$se, 0)
         df$unif.upper <- c(0, ul) #pmin(est + quant * res$se, 1)
 
