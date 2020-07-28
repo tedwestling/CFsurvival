@@ -346,30 +346,33 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
         result$surv.df <- rbind(result$surv.df, surv.df.1)
     }
 
-
-
     #### ESTIMATE CF CONTRASTS ####
+    if(identical(sort(fit.treat), c(0,1))) {
+        q.01 <- quantile(time[event == 1], .01)#min(fit.times[surv.0$surv <= .99])
+        q.99 <- max(fit.times[surv.0$surv.iso >= .01 | surv.1$surv.iso >= .01])
+    }
+
     if('surv.diff' %in% contrasts & identical(sort(fit.treat), c(0,1))) {
         if(verbose) message("Computing survival differences...")
-        surv.diff <- .surv.difference(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, conf.level=conf.level)
+        surv.diff <- .surv.difference(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, band.end.pts=c(q.01, q.99), conf.level=conf.level)
         result <- c(result, surv.diff)
     }
 
     if('surv.ratio' %in% contrasts & identical(sort(fit.treat), c(0,1))) {
         if(verbose) message("Computing survival ratios...")
-        surv.ratio <- .surv.ratio(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, conf.level=conf.level)
+        surv.ratio <- .surv.ratio(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, band.end.pts=c(q.01, q.99),conf.level=conf.level)
         result <- c(result, surv.ratio)
     }
 
     if('risk.ratio' %in% contrasts  & identical(sort(fit.treat), c(0,1))) {
         if(verbose) message("Computing risk ratios...")
-        risk.ratio <- .risk.ratio(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, conf.level=conf.level)
+        risk.ratio <- .risk.ratio(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, band.end.pts=c(q.01, q.99), conf.level=conf.level)
         result <- c(result, risk.ratio)
     }
 
     if('nnt' %in% contrasts  & identical(sort(fit.treat), c(0,1))) {
         if(verbose) message("Computing number needed to treat...")
-        nnt <- .nnt(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, conf.level=conf.level)
+        nnt <- .nnt(fit.times=fit.times, surv.0=surv.0$surv, IF.vals.0 = surv.0$IF.vals, surv.1=surv.1$surv, IF.vals.1 = surv.1$IF.vals, conf.band=conf.band, band.end.pts=c(q.01, q.99), conf.level=conf.level)
         result <- c(result, nnt)
     }
 
@@ -490,7 +493,7 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = 10, folds = NULL, 
     return(res)
 }
 
-.surv.confints <- function(times, est, IF.vals, isotonize=TRUE, conf.band=TRUE, band.end.pts=NULL, conf.level=.95) {
+.surv.confints <- function(times, est, IF.vals, isotonize=TRUE, conf.band=TRUE, band.end.pts=c(0,Inf), conf.level=.95) {
     logit <- function(x) log(x / (1-x))
     logit.prime <- function(x) 1/(x * (1-x))
     expit <- function(x) 1/(1 + exp(-x))

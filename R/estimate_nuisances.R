@@ -6,7 +6,8 @@
     } else {
         newAW <- cbind(A=fit.treat, newW)
     }
-    library(survSuperLearner)
+    res <- require(survSuperLearner)
+    if(!res) stop("Please install the package survSuperLearner via:\n devtools::install_github('tedwestling/survSuperLearner')")
 
     fit <- survSuperLearner(time = Y, event = Delta,  X = AW, newX = newAW, new.times = fit.times, event.SL.library = event.SL.library, cens.SL.library = cens.SL.library, verbose=verbose, control = list(saveFitLibrary = save.fit))
     if(save.fit) ret$surv.fit <- fit

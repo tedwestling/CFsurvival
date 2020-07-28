@@ -1,4 +1,4 @@
-.surv.difference <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, conf.level=.95) {
+.surv.difference <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, band.end.pts=c(0,Inf), conf.level=.95) {
     logit <- function(x) log(x / (1-x))
     logit.prime <- function(x) 1/(x * (1-x))
     expit <- function(x) 1/(1 + exp(-x))
@@ -35,7 +35,7 @@
 
 
     if(conf.band) {
-        unif.info <- .estimate.uniform.quantile(IF.diff.logit[,!is.na(se.diff.logit)], conf.level)
+        unif.info <- .estimate.uniform.quantile(IF.diff.logit[,!is.na(se.diff.logit) & fit.times >= band.end.pts[1] & fit.times <= band.end.pts[2]], conf.level)
         unif.quant <- unif.info$quantile
 
         ll <- 2 * expit(logit.diff - unif.quant * se.diff.logit / sqrt(n)) - 1
@@ -44,6 +44,9 @@
         # ul[!in.bounds] <- pmax(approx(fit.times[in.bounds], ul[in.bounds], xout=fit.times[!in.bounds], rule=2)$y, diff[!in.bounds])
         df$unif.lower <- c(0, ll)#pmax(est - quant * res$se, 0)
         df$unif.upper <- c(0, ul) #pmin(est + quant * res$se, 1)
+
+        df$unif.lower[fit.times < band.end.pts[1] | fit.times > band.end.pts[2]] <- NA
+        df$unif.upper[fit.times < band.end.pts[1] | fit.times > band.end.pts[2]] <- NA
 
         #df$unif.pval <- c(1, pchisq((diff/( unif.quant * se.logit))^2, df=1, lower.tail = FALSE))
     }
@@ -56,7 +59,7 @@
     return(res)
 }
 
-.surv.ratio <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, conf.level=.95) {
+.surv.ratio <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, band.end.pts=c(0, Inf),conf.level=.95) {
     n <- nrow(IF.vals.0)
     quant <- qt(1-(1-conf.level)/2, df = n - 1)
     df <- data.frame(time=c(0,fit.times), log.surv.ratio=c(0,log(surv.1) - log(surv.0)), surv.ratio=c(1,surv.1 / surv.0))
@@ -75,12 +78,16 @@
 
 
     if(conf.band) {
-        log.unif.info <- .estimate.uniform.quantile(IF.log.ratio[,!is.na(se.log.ratio)], conf.level)
+        log.unif.info <- .estimate.uniform.quantile(IF.log.ratio[,!is.na(se.log.ratio) & fit.times >= band.end.pts[1] & fit.times <= band.end.pts[2]], conf.level)
         log.unif.quant <- log.unif.info$quantile
         df$unif.lower.log <- df$log.surv.ratio - log.unif.quant * df$se.log.ratio
         df$unif.upper.log <- df$log.surv.ratio + log.unif.quant * df$se.log.ratio
         df$unif.lower <- exp(df$unif.lower.log)
         df$unif.upper <- exp(df$unif.upper)
+
+        df$unif.lower[fit.times < band.end.pts[1] | fit.times > band.end.pts[2]] <- NA
+        df$unif.upper[fit.times < band.end.pts[1] | fit.times > band.end.pts[2]] <- NA
+
       #  df$unif.pval <- c(1, pchisq((df$log.surv.ratio[-1]/( log.unif.quant * df$se.log.ratio[-1]))^2, df=1, lower.tail = FALSE))
     }
 
@@ -93,7 +100,7 @@
     return(res)
 }
 
-.risk.ratio <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, conf.level=.95) {
+.risk.ratio <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, band.end.pts=c(0,Inf), conf.level=.95) {
     n <- nrow(IF.vals.0)
     quant <- qt(1-(1-conf.level)/2, df = n - 1)
     risk.0 <- 1-surv.0
@@ -116,12 +123,16 @@
 
 
     if(conf.band) {
-        log.unif.info <- .estimate.uniform.quantile(IF.log.ratio[,!is.na(se.log.ratio)], conf.level)
+        log.unif.info <- .estimate.uniform.quantile(IF.log.ratio[,!is.na(se.log.ratio) & fit.times >= band.end.pts[1] & fit.times <= band.end.pts[2]], conf.level)
         log.unif.quant <- log.unif.info$quantile
         df$unif.lower.log <- df$log.risk.ratio - log.unif.quant * df$se.log.ratio
         df$unif.upper.log <- df$log.risk.ratio + log.unif.quant * df$se.log.ratio
         df$unif.lower <- exp(df$unif.lower.log)
         df$unif.upper <- exp(df$unif.upper)
+
+        df$unif.lower[fit.times < band.end.pts[1] | fit.times > band.end.pts[2]] <- NA
+        df$unif.upper[fit.times < band.end.pts[1] | fit.times > band.end.pts[2]] <- NA
+
        # df$unif.pval <- c(1, pchisq((df$log.risk.ratio[-1]/( log.unif.quant * df$se.log.ratio[-1]))^2, df=1, lower.tail = FALSE))
     }
 
@@ -134,7 +145,7 @@
     return(res)
 }
 
-.nnt <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, conf.level=.95) {
+.nnt <- function(fit.times, surv.0, surv.1, IF.vals.0, IF.vals.1, conf.band=TRUE, band.end.pts=c(0, Inf), conf.level=.95) {
     n <- nrow(IF.vals.0)
     quant <- qt(1-(1-conf.level)/2, df = n - 1)
     df <- data.frame(time=c(0,fit.times), nnt=c(NA,1/(surv.1-surv.0)))#, log.nnt=c(NA, -log(surv.1-surv.0)))
@@ -155,10 +166,13 @@
     df$ptwise.upper <- df$nnt + quant * df$se
 
     if(conf.band) {
-        unif.info <- .estimate.uniform.quantile(IF.nnt[,!is.na(se.nnt) & !is.nan(se.nnt) & !is.infinite(se.nnt)], conf.level)
+        unif.info <- .estimate.uniform.quantile(IF.nnt[,!is.na(se.nnt) & !is.nan(se.nnt) & !is.infinite(se.nnt) & fit.times >= band.end.pts[1] & fit.times <= band.end.pts[2]], conf.level)
         unif.quant <- unif.info$quantile
         df$unif.lower <- df$nnt - unif.quant * df$se
         df$unif.upper <- df$nnt + unif.quant * df$se
+        df$unif.lower[fit.times < band.end.pts[1] | fit.times > band.end.pts[2]] <- NA
+        df$unif.upper[fit.times < band.end.pts[1] | fit.times > band.end.pts[2]] <- NA
+
     }
 
     res <- list(nnt.df=df)
