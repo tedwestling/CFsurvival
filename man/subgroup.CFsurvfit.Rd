@@ -4,9 +4,17 @@
 \alias{subgroup.CFsurvfit}
 \title{Compute subgroup counterfactual survival functions}
 \usage{
-subgroup.CFsurvfit(fit, subgroup.inds, conf.band = TRUE,
-  conf.level = 0.95, surv.diffs = TRUE, surv.ratios = TRUE,
-  risk.ratios = FALSE, nnt = FALSE, verbose = FALSE)
+subgroup.CFsurvfit(
+  fit,
+  subgroup.inds,
+  conf.band = TRUE,
+  conf.level = 0.95,
+  surv.diffs = TRUE,
+  surv.ratios = TRUE,
+  risk.ratios = FALSE,
+  nnt = FALSE,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{fit}{Previously fitted CF survival curves from the \code{CFsurvfit}}

@@ -1,4 +1,4 @@
-.estimate.conditional.survival <- function(Y, Delta, A, W, newW, fit.times, fit.treat, event.SL.library, cens.SL.library, verbose, save.fit) {
+.estimate.conditional.survival <- function(Y, Delta, A, W, newW, fit.times, fit.treat, event.SL.library, cens.SL.library, survSL.control, survSL.cvControl, verbose, save.fit) {
     ret <- list(fit.times=fit.times)
     AW <- cbind(A, W)
     if(0 %in% fit.treat & 1 %in% fit.treat) {
@@ -8,8 +8,9 @@
     }
     res <- require(survSuperLearner)
     if(!res) stop("Please install the package survSuperLearner via:\n devtools::install_github('tedwestling/survSuperLearner')")
+    if(is.null(survSL.control)) survSL.control <- list(saveFitLibrary = save.fit)
 
-    fit <- survSuperLearner(time = Y, event = Delta,  X = AW, newX = newAW, new.times = fit.times, event.SL.library = event.SL.library, cens.SL.library = cens.SL.library, verbose=verbose, control = list(saveFitLibrary = save.fit))
+    fit <- survSuperLearner(time = Y, event = Delta,  X = AW, newX = newAW, new.times = fit.times, event.SL.library = event.SL.library, cens.SL.library = cens.SL.library, verbose=verbose, control = survSL.control, cvControl = survSL.cvControl)
     if(save.fit) ret$surv.fit <- fit
     if(0 %in% fit.treat) {
         ret$event.pred.0 <- fit$event.SL.predict[1:nrow(newW),]
@@ -22,6 +23,8 @@
         ret$event.pred.1 <- fit$event.SL.predict
         ret$cens.pred.1 <- fit$cens.SL.predict
     }
+    ret$event.coef <- fit$event.coef
+    ret$cens.coef <- fit$cens.coef
     return(ret)
 }
 

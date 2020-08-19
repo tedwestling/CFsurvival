@@ -4,19 +4,28 @@
 \alias{CFsurvival.nuisance.options}
 \title{Initialize options for nuisance estimation}
 \usage{
-CFsurvival.nuisance.options(cross.fit = TRUE, V = 10, folds = NULL,
-  eval.times = NULL, save.nuis.fits = FALSE,
-  event.SL.library = lapply(c("survSL.km", "survSL.coxph",
-  "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam",
-  "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet",
-  "surv.screen.marg", "All")), event.pred.0 = NULL,
-  event.pred.1 = NULL, cens.SL.library = lapply(c("survSL.km",
-  "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg",
-  "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet",
-  "surv.screen.marg", "All")), cens.pred.0 = NULL, cens.pred.1 = NULL,
-  prop.SL.library = lapply(c("SL.mean", "SL.bayesglm", "SL.gam",
-  "SL.earth", "SL.ranger", "SL.xgboost"), function(alg) c(alg,
-  "screen.glmnet", "screen.corRank", "All")), prop.pred = NULL)
+CFsurvival.nuisance.options(
+  cross.fit = TRUE,
+  V = ifelse(cross.fit, 10, 1),
+  folds = NULL,
+  eval.times = NULL,
+  event.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg",
+    "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg)
+    c(alg, "survscreen.glmnet", "survscreen.marg", "All")),
+  event.pred.0 = NULL,
+  event.pred.1 = NULL,
+  cens.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg",
+    "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg)
+    c(alg, "survscreen.glmnet", "survscreen.marg", "All")),
+  cens.pred.0 = NULL,
+  cens.pred.1 = NULL,
+  survSL.control = list(initWeightAlg = "survSL.rfsrc"),
+  survSL.cvControl = list(V = 10),
+  save.nuis.fits = FALSE,
+  prop.SL.library = lapply(c("SL.mean", "SL.glm", "SL.gam", "SL.earth", "SL.ranger",
+    "SL.xgboost"), function(alg) c(alg, "screen.glmnet", "screen.corRank", "All")),
+  prop.pred = NULL
+)
 }
 \arguments{
 \item{cross.fit}{Logical indicating whether to cross-fit nuisance parameters. Defaults to \code{TRUE}.}
@@ -26,8 +35,6 @@ CFsurvival.nuisance.options(cross.fit = TRUE, V = 10, folds = NULL,
 \item{folds}{Optional \code{n x 1} vector indicating which fold each observation is in. If \code{NULL}, folds will be randomly assigned in such a way to balance observed events across folds.}
 
 \item{eval.times}{Grid of time values on which to perform the estimation procedure. Defaults to the sorted unique values in \code{time}.}
-
-\item{save.nuis.fits}{Logical indicating whether to save the fitted nuisance objects.}
 
 \item{event.SL.library}{The library of candidate learners to be passed on to \code{\link[survSuperLearner]{survSuperLearner}} to estimate the conditional survival of the event. If only a single learner is provided(e.g. \code{survSL.km} for Kaplan-Meier estimator, \code{survSL.coxph} for Cox model, or \code{survSL.rfsrc} for survival random forest), then just this learner will be used, and no super learning will be performed. Defaults to a full library with screening and all algorithms currently implemented in \code{survSuperLearner}. If \code{event.SL.library = NULL}, then \code{event.pred.0} and/or \code{event.pred.1} must be specified.}
 
@@ -40,6 +47,12 @@ CFsurvival.nuisance.options(cross.fit = TRUE, V = 10, folds = NULL,
 \item{cens.pred.0}{Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 0 and confounders. If \code{cens.SL.library = NULL} and \code{0 \%in\% fit.treat}, then \code{cens.pred.0} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.0 } is ignored.}
 
 \item{cens.pred.1}{Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 1 and confounders. If \code{cens.SL.library = NULL} and \code{1 \%in\% fit.treat}, then \code{cens.pred.1} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.1} is ignored.}
+
+\item{survSL.control}{Optional list of controls to be passed to \code{\link[survSuperLearner]{survSuperLearner}}. See \code{\link[survSuperLearner]{survSuperLearner.control}}.}
+
+\item{survSL.cvControl}{Optional list of controls to be passed to \code{\link[survSuperLearner]{survSuperLearner}}. See \code{\link[survSuperLearner]{survSuperLearner.CV.control}}.}
+
+\item{save.nuis.fits}{Logical indicating whether to save the fitted nuisance objects.}
 
 \item{prop.SL.library}{The library to use for estimation of the treatment propensities using \code{\link[SuperLearner]{SuperLearner}}. If only a single learner is provided(e.g. \code{SL.mean} for marginal mean, \code{SL.glm} for logistic regression, or \code{SL.ranger} for random forest), then just this learner will be used, and no super learning will be performed. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be provided.}
 

@@ -1,5 +1,3 @@
-# TODO:
-#  CIs/CBs for contrasts
 
 #' Estimate counterfactual survival functions
 #'
@@ -15,7 +13,7 @@
 #' @param confounders \code{n x p} numeric matrix of potential confounders to use when estimating the conditional survival probabilities. Missing values are not allowed
 #' @param fit.times \code{k x 1} numeric vector of time grid at which the counterfactual survival function should be computed. Only values > 0 are allowed. Note that even if the survival is only desired at one timepoint (e.g. a final study time), fit.times should be a relatively fine grid between 0 and this final time in order for the computation to work. Defauls to all unique positive values in \code{time}.
 #' @param fit.treat Optional subset of \code{c(0,1)} for which the counterfactual survival curves are desired. For example, if \code{fit.treat=c(0,1)} (default behavior) then both curves will be estimated, and if \code{fit.treat=0} then only the curve under non-treatment will be estimated.
-#' @param nuisance.options List of options for nuisance parameter specification. See \code{\link{nuisance.options}} for details. Defaults to SuperLearners with rich libraries.
+#' @param nuisance.options List of options for nuisance parameter specification. See \code{\link{CFsurvival.nuisance.options}} for details. Defaults to SuperLearners with rich libraries.
 #' @param conf.band Logical indicating whether to compute simultaneous confidence bands.
 #' @param conf.level Desired coverage of confidence intervals/bands.
 #' @param contrasts Character vector indicating which (if any) contrasts of the survival functions are desired. Can include \code{"surv.diff"} (difference of survival functions), \code{"surv.ratio"} (ratio of survival functions), \code{"risk.ratio"} (ratio of the risk functions), or \code{"nnt"} (number needed to treat; i.e. recipricol of survival difference). If not \code{NULL}, then \code{fit.treat} must be \code{c(0,1)}. Defaults to \code{c("surv.diff", "surv.ratio")}.
@@ -157,7 +155,7 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
     }
 
     if(!nuis$cross.fit) {
-        if(!is.null(nuis$folds) | nuis$V > 1) {
+        if(!is.null(nuis$folds)) {
             message("nuisance.options$cross.fit set to FALSE, but V > 1 or folds specified. Cross-fitting will not be performed.")
         }
         nuis$V <- 1
@@ -168,16 +166,16 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
         nuis$V <- length(unique(nuis$folds))
     }
     if(nuis$cross.fit & is.null(nuis$folds)) {
-        while (sum(event) < nuis$V | sum(1-event) < nuis$V) {
-            if (nuis$V == 1) {
-                message("Cannot perform cross-fitting with one uncensored event.")
-                nuis$cross.fit <- FALSE
-                nuis$V <- 1
-                break
-            }
-            message(paste0("Number of (event = 1) or (event = 0) is less than the number of folds; reducing number of folds to ", nuis$V-1))
-            nuis$V <- nuis$V-1
-        }
+        # while (sum(event) < nuis$V | sum(1-event) < nuis$V) {
+        #     if (nuis$V == 1) {
+        #         message("Cannot perform cross-fitting with one uncensored event.")
+        #         nuis$cross.fit <- FALSE
+        #         nuis$V <- 1
+        #         break
+        #     }
+        #     message(paste0("Number of (event = 1) or (event = 0) is less than the number of folds; reducing number of folds to ", nuis$V-1))
+        #     nuis$V <- nuis$V-1
+        # }
         event.0 <- which(event == 0)
         event.1 <- which(event == 1)
         folds.0 <- sample(rep(1:nuis$V, length = length(event.0)))
@@ -227,8 +225,8 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
                 if(nuis$save.nuis.fits) result$prop.fits[[v]] <- prop.fit$prop.fit
             }
         } else {
-            prop.fit <- .estimate.propensity(A=treat, W.propensity=confounders[,nuis$prop.subset, drop=FALSE], newW=confounders[,nuis$prop.subset, drop=FALSE], SL.library=nuis$prop.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
-            nuis$prop.pred[test] <- prop.fit$prop.pred
+            prop.fit <- .estimate.propensity(A=treat, W=confounders, newW=confounders, SL.library=nuis$prop.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
+            nuis$prop.pred <- prop.fit$prop.pred
             if(nuis$save.nuis.fits) {
                 result <- c(result, prop.fit = prop.fit$prop.fit)
             }
@@ -257,24 +255,29 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
         } else do.cens.pred.1 <- FALSE
         if(nuis$V > 1) {
             if(nuis$save.nuis.fits) result$surv.fits <- vector(mode='list',length=nuis$V)
+            nuis$event.coef <- nuis$cens.coef <- list()
             for(v in 1:nuis$V) {
                 if(verbose) message(paste("Fold ", v, "..."))
                 train <- nuis$fold != v
                 test <- nuis$fold == v
-                surv.fit <- .estimate.conditional.survival(Y=time[train], Delta=event[train], A=treat[train], W=confounders[train,, drop=FALSE], newW=confounders[test,, drop=FALSE], event.SL.library=nuis$event.SL.library, fit.times=nuis$eval.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
+                surv.fit <- .estimate.conditional.survival(Y=time[train], Delta=event[train], A=treat[train], W=confounders[train,, drop=FALSE], newW=confounders[test,, drop=FALSE], event.SL.library=nuis$event.SL.library, fit.times=nuis$eval.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, survSL.control=nuis$survSL.control, survSL.cvControl = nuis$survSL.cvControl, save.fit = nuis$save.nuis.fits, verbose = FALSE)
                 if(do.event.pred.0) nuis$event.pred.0[test,] <- surv.fit$event.pred.0
                 if(do.event.pred.1) nuis$event.pred.1[test,] <- surv.fit$event.pred.1
                 if(do.cens.pred.0) nuis$cens.pred.0[test,] <- surv.fit$cens.pred.0
                 if(do.cens.pred.1) nuis$cens.pred.1[test,] <- surv.fit$cens.pred.1
                 if(nuis$save.nuis.fits) result$surv.fits[[v]] <- surv.fit$surv.fit
+                nuis$event.coef[[v]] <- surv.fit$event.coef
+                nuis$cens.coef[[v]] <- surv.fit$cens.coef
             }
         } else {
-            surv.fit <- .estimate.conditional.survival(Y=time, Delta=event, A=treat, W=confounders, newW=confounders, event.SL.library=nuis$event.SL.library, fit.times=nuis$eval.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
+            surv.fit <- .estimate.conditional.survival(Y=time, Delta=event, A=treat, W=confounders, newW=confounders, event.SL.library=nuis$event.SL.library, fit.times=nuis$eval.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, survSL.control=nuis$survSL.control, survSL.cvControl = nuis$survSL.cvControl, save.fit = nuis$save.nuis.fits,  verbose = FALSE)
             if(do.event.pred.0) nuis$event.pred.0 <- surv.fit$event.pred.0
             if(do.event.pred.1) nuis$event.pred.1 <- surv.fit$event.pred.1
             if(do.cens.pred.0) nuis$cens.pred.0 <- surv.fit$cens.pred.0
             if(do.cens.pred.1) nuis$cens.pred.1 <- surv.fit$cens.pred.1
             if(nuis$save.nuis.fits) result$surv.fit <- surv.fit$surv.fit
+            nuis$event.coef <- surv.fit$event.coef
+            nuis$cens.coef <- surv.fit$cens.coef
         }
     }
 
@@ -398,16 +401,22 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
 #' @param cens.SL.library The library of candidate learners to estimate the conditional survival of censoring. As with \code{event.SL.library}, single learners can be specified. Defaults to a full library with screening and all algorithms currently implemented in \code{survSuperLearner}. If \code{cens.SL.library = NULL}, then \code{cens.pred.0} and/or \code{cens.pred.1} must be specified.
 #' @param cens.pred.0 Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 0 and confounders. If \code{cens.SL.library = NULL} and \code{0 \%in\% fit.treat}, then \code{cens.pred.0} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.0 } is ignored.
 #' @param cens.pred.1 Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 1 and confounders. If \code{cens.SL.library = NULL} and \code{1 \%in\% fit.treat}, then \code{cens.pred.1} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.1} is ignored.
+#' @param survSL.control Optional list of controls to be passed to \code{\link[survSuperLearner]{survSuperLearner}}. See \code{\link[survSuperLearner]{survSuperLearner.control}}.
+#' @param survSL.cvControl Optional list of controls to be passed to \code{\link[survSuperLearner]{survSuperLearner}}. See \code{\link[survSuperLearner]{survSuperLearner.CV.control}}.
 #' @param prop.SL.library The library to use for estimation of the treatment propensities using \code{\link[SuperLearner]{SuperLearner}}. If only a single learner is provided(e.g. \code{SL.mean} for marginal mean, \code{SL.glm} for logistic regression, or \code{SL.ranger} for random forest), then just this learner will be used, and no super learning will be performed. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be provided.
 #' @param prop.pred Optional \code{n x 1} numeric vector of estimated probabilities that \code{treat = 1} given the confounders. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be specified, otherwise it is ignored.
 #' @return Named list containing the nuisance options.
-CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = 10, folds = NULL, eval.times = NULL, save.nuis.fits = FALSE,
-                                        event.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet", "surv.screen.marg", "All") ),  event.pred.0 = NULL, event.pred.1 = NULL,
-                                        cens.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "surv.screen.glmnet", "surv.screen.marg", "All") ),  cens.pred.0 = NULL, cens.pred.1 = NULL,
-                                        prop.SL.library = lapply(c("SL.mean", "SL.bayesglm", "SL.gam", "SL.earth", "SL.ranger", "SL.xgboost"), function(alg) c(alg, "screen.glmnet", "screen.corRank", "All") ), prop.pred = NULL) {
-    list(cross.fit = cross.fit, V = V, folds = folds, eval.times = eval.times, save.nuis.fits = save.nuis.fits,
+CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = ifelse(cross.fit, 10, 1), folds = NULL, eval.times = NULL,
+                                        event.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "survscreen.glmnet", "survscreen.marg", "All") ),  event.pred.0 = NULL, event.pred.1 = NULL,
+                                        cens.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "survscreen.glmnet", "survscreen.marg", "All") ),  cens.pred.0 = NULL, cens.pred.1 = NULL,
+                                        survSL.control = list(initWeightAlg = "survSL.rfsrc"), survSL.cvControl = list(V = 10), save.nuis.fits = FALSE,
+                                        prop.SL.library = lapply(c("SL.mean", "SL.glm", "SL.gam", "SL.earth", "SL.ranger", "SL.xgboost"), function(alg) c(alg, "screen.glmnet", "screen.corRank", "All") ), prop.pred = NULL) {
+    list(cross.fit = cross.fit, V = V, folds = folds, eval.times = eval.times,
          event.SL.library = event.SL.library, event.pred.0 = event.pred.0, event.pred.1 = event.pred.1,
          cens.SL.library = cens.SL.library, cens.pred.0 = cens.pred.0, cens.pred.1 = cens.pred.1,
+         survSL.control = survSL.control,
+         survSL.cvControl = survSL.cvControl,
+         save.nuis.fits = save.nuis.fits,
          prop.SL.library = prop.SL.library,  prop.pred = prop.pred)
 }
 

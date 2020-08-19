@@ -4,11 +4,19 @@
 \alias{CFsurvival}
 \title{Estimate counterfactual survival functions}
 \usage{
-CFsurvival(time, event, treat, confounders,
-  fit.times = sort(unique(time[time > 0 & time < max(time[event ==
-  1])])), fit.treat = c(0, 1), nuisance.options = list(),
-  conf.band = TRUE, conf.level = 0.95, contrasts = c("surv.diff",
-  "surv.ratio"), verbose = FALSE)
+CFsurvival(
+  time,
+  event,
+  treat,
+  confounders,
+  fit.times = sort(unique(time[time > 0 & time < max(time[event == 1])])),
+  fit.treat = c(0, 1),
+  nuisance.options = list(),
+  conf.band = TRUE,
+  conf.level = 0.95,
+  contrasts = c("surv.diff", "surv.ratio"),
+  verbose = FALSE
+)
 }
 \arguments{
 \item{time}{\code{n x 1} numeric vector of observed right-censored follow-up times; i.e. the minimum of the event and censoring times.}
@@ -23,7 +31,7 @@ CFsurvival(time, event, treat, confounders,
 
 \item{fit.treat}{Optional subset of \code{c(0,1)} for which the counterfactual survival curves are desired. For example, if \code{fit.treat=c(0,1)} (default behavior) then both curves will be estimated, and if \code{fit.treat=0} then only the curve under non-treatment will be estimated.}
 
-\item{nuisance.options}{List of options for nuisance parameter specification. See \code{\link{nuisance.options}} for details. Defaults to SuperLearners with rich libraries.}
+\item{nuisance.options}{List of options for nuisance parameter specification. See \code{\link{CFsurvival.nuisance.options}} for details. Defaults to SuperLearners with rich libraries.}
 
 \item{conf.band}{Logical indicating whether to compute simultaneous confidence bands.}
 
@@ -54,7 +62,7 @@ This function estimates counterfactual survival functions and contrasts from rig
 \details{
 For a binary treatment measured at baseline, the counterfactual survival through time \code{t} for treatment level \code{a} is defined as the probability of survival up to time \code{t} were all units in the population assigned to treatment \code{a}. This quantity is estimated using an augmented inverse probability of treatment/censoring weighted (AIPTW) estimator. Our estimator of the counterfactual survival function requires further estimation of three nuisance parameters: the conditional probability of receiving treatment given a set of potential confounders (i.e. the treatment propensity), the conditional survival function of the event given confounders, and the conditional survival function of censoring given confounders. At the moment, we provide two ways of estimating each of these nuisance parameters. The treatment propensity can be estimated either using a logistic regression or SuperLearner (van der Laan and Polley, 2006). The conditional survival functions of event and censoring can be estimated using Cox proportional hazard models or survival random forests (Ishwaran et al.). Additionally, the estimates of any of these parameters can be passed in directly if another method is desired.
 
-\code{CFsurvival} by default returns 95\% pointwise confidence intervals and 95\% uniform confidence bands, both of which are based on the influence function of the estimator. Contrasts of the counterfactual survival under treatment and control can also be obtained, including the survival difference, survival ratio, risk ratio, and number needed to treat. Pointwise confidence intervals and uniform confidence bands for these contrasts will also be computed.
+ \code{CFsurvival} by default returns 95\% pointwise confidence intervals and 95\% uniform confidence bands, both of which are based on the influence function of the estimator. Contrasts of the counterfactual survival under treatment and control can also be obtained, including the survival difference, survival ratio, risk ratio, and number needed to treat. Pointwise confidence intervals and uniform confidence bands for these contrasts will also be computed.
 
 \code{surv.df$ptwise.lower} and \code{surv.df$ptwise.upper} are lower and upper endpoints of back-transformed pointwise confidence intervals on the logit scale. Pointwise confidence intervals are only provided for values of \code{fit.times} that are at least as large as the smallest observed event time in the corresponding treatment cohort. \code{surv.df$unif.ew.lower} and \code{surv.df$unif.ew.upper} are lower and upper endpoints of an equal-width confidence band. \code{surv.df$unif.logit.lower} and \code{surv.df$unif.logit.upper} are lower and upper endpoints of an equi-precision confidence band on the logit scale, and trasformed back to the survival scale. This confidence band only covers values of \code{fit.times} such that the corresponding estimated survival function is \code{<= .99} and \code{>= .01}.
 }
