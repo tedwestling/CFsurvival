@@ -14,14 +14,21 @@
     if(save.fit) ret$surv.fit <- fit
     if(0 %in% fit.treat) {
         ret$event.pred.0 <- fit$event.SL.predict[1:nrow(newW),]
+        if(any(ret$event.pred.0 == 0)) ret$event.pred.0[ret$event.pred.0 == 0] <- min(ret$event.pred.0[ret$event.pred.0 > 0])
         ret$cens.pred.0 <- fit$cens.SL.predict[1:nrow(newW),]
+        if(any(ret$cens.pred.0 == 0)) ret$cens.pred.0[ret$cens.pred.0 == 0] <- min(ret$cens.pred.0[ret$cens.pred.0 > 0])
         if(1 %in% fit.treat) {
             ret$event.pred.1 <- fit$event.SL.predict[-(1:nrow(newW)),]
+            if(any(ret$event.pred.1 == 0)) ret$event.pred.1[ret$event.pred.1 == 0] <- min(ret$event.pred.1[ret$event.pred.1 > 0])
+
             ret$cens.pred.1 <- fit$cens.SL.predict[-(1:nrow(newW)),]
+            if(any(ret$cens.pred.1 == 0)) ret$cens.pred.1[ret$cens.pred.1 == 0] <- min(ret$cens.pred.1[ret$cens.pred.1 > 0])
         }
     } else {
         ret$event.pred.1 <- fit$event.SL.predict
+        if(any(ret$event.pred.1 == 0)) ret$event.pred.1[ret$event.pred.1 == 0] <- min(ret$event.pred.1[ret$event.pred.1 > 0])
         ret$cens.pred.1 <- fit$cens.SL.predict
+        if(any(ret$cens.pred.1 == 0)) ret$cens.pred.1[ret$cens.pred.1 == 0] <- min(ret$cens.pred.1[ret$cens.pred.1 > 0])
     }
     ret$event.coef <- fit$event.coef
     ret$cens.coef <- fit$cens.coef
