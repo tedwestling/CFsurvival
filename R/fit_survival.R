@@ -228,7 +228,7 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
             prop.fit <- .estimate.propensity(A=treat, W=confounders, newW=confounders, SL.library=nuis$prop.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
             nuis$prop.pred <- prop.fit$prop.pred
             if(nuis$save.nuis.fits) {
-                result <- c(result, prop.fit = prop.fit$prop.fit)
+                result$prop.fit <- prop.fit$prop.fit
             }
         }
     }
@@ -427,17 +427,17 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = ifelse(cross.fit, 
     if(any(!(treat %in% c(0,1)))) stop("Treatment must be binary.")
     if(length(time) != length(event) | length(time) != length(treat)) stop("time, event, and treat must be n x 1 vectors")
     if(any(!(fit.treat %in% c(0,1)))) stop("fit.treat must be a subset of c(0,1).")
-    if(!is.null(nuisance.options$event.pred.1) && dim(nuisance.options$event.pred.1) != c(nrow(time), length(fit.times))) {
-        stop("event.pred must be an n x k matrix (n is number of observations, k is length of fit.times)")
+    if(!is.null(nuisance.options$event.pred.1) && !all.equal(dim(nuisance.options$event.pred.1), c(length(time), length(nuisance.options$eval.times)))) {
+        stop("event.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
     }
-    if(!is.null(nuisance.options$event.pred.0) && dim(nuisance.options$event.pred.0) != c(nrow(time), length(fit.times))) {
-        stop("event.pred must be an n x k matrix (n is number of observations, k is length of fit.times)")
+    if(!is.null(nuisance.options$event.pred.0) && !all.equal(dim(nuisance.options$event.pred.0), c(length(time), length(nuisance.options$eval.times)))) {
+        stop("event.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
     }
-    if(!is.null(nuisance.options$cens.pred.1) && dim(nuisance.options$cens.pred.1) != c(nrow(time), length(fit.times))) {
-        stop("cens.pred must be an n x k matrix (n is number of observations, k is length of fit.times)")
+    if(!is.null(nuisance.options$cens.pred.1) && !all.equal(dim(nuisance.options$cens.pred.1), c(length(time), length(nuisance.options$eval.times)))) {
+        stop("cens.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
     }
-    if(!is.null(nuisance.options$cens.pred.0) && dim(nuisance.options$cens.pred.0) != c(nrow(time), length(fit.times))) {
-        stop("cens.pred must be an n x k matrix (n is number of observations, k is length of fit.times)")
+    if(!is.null(nuisance.options$cens.pred.0) && !all.equal(dim(nuisance.options$cens.pred.0), c(length(time), length(nuisance.options$eval.times)))) {
+        stop("cens.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
     }
     if(is.null(nuisance.options$event.SL.library)) {
         if(0 %in% fit.treat & is.null(nuisance.options$event.pred.0)) {
