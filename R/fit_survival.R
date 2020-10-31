@@ -579,7 +579,7 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = ifelse(cross.fit, 
     n <- nrow(IF.vals)
     if(scale) IF.vals <- scale(IF.vals)
     maxes <- replicate(1e4, max(abs(rbind(rt(n, df = n - 1)/sqrt(n)) %*% IF.vals)))
-    return(list(quantile=quantile(maxes, 1 - (1 - conf.level)/2), maxes=maxes))
+    return(list(quantile=quantile(maxes, conf.level), maxes=maxes))
 }
 
 # conditional.cum.inc <- function(surv0, IF0, survs, IF.vals, conf.level=.95) {
