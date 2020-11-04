@@ -185,6 +185,7 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
         nuis$folds[event.1] <- folds.1
     }
 
+    if(is.null(nuis$verbose)) nuis$verbose <- FALSE
 
     contrasts <- unique(tolower(contrasts))
     contrasts <- contrasts[contrasts %in% c("surv.diff", "surv.ratio", "risk.ratio", "nnt")]
@@ -220,7 +221,7 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
                 if(verbose) message(paste("Fold ", v, "..."))
                 train <- nuis$fold != v
                 test <- nuis$fold == v
-                prop.fit <- .estimate.propensity(A=treat[train], W=confounders[train,,drop=FALSE], newW=confounders[test,, drop=FALSE], SL.library=nuis$prop.SL.library, save.fit = nuis$save.nuis.fits, verbose = FALSE)
+                prop.fit <- .estimate.propensity(A=treat[train], W=confounders[train,,drop=FALSE], newW=confounders[test,, drop=FALSE], SL.library=nuis$prop.SL.library, save.fit = nuis$save.nuis.fits, verbose = nuis$verbose)
                 nuis$prop.pred[test] <- prop.fit$prop.pred
                 if(nuis$save.nuis.fits) result$prop.fits[[v]] <- prop.fit$prop.fit
             }
@@ -260,7 +261,7 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
                 if(verbose) message(paste("Fold ", v, "..."))
                 train <- nuis$fold != v
                 test <- nuis$fold == v
-                surv.fit <- .estimate.conditional.survival(Y=time[train], Delta=event[train], A=treat[train], W=confounders[train,, drop=FALSE], newW=confounders[test,, drop=FALSE], event.SL.library=nuis$event.SL.library, fit.times=nuis$eval.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, survSL.control=nuis$survSL.control, survSL.cvControl = nuis$survSL.cvControl, save.fit = nuis$save.nuis.fits, verbose = nuis$survSL.cvControl$verbose)
+                surv.fit <- .estimate.conditional.survival(Y=time[train], Delta=event[train], A=treat[train], W=confounders[train,, drop=FALSE], newW=confounders[test,, drop=FALSE], event.SL.library=nuis$event.SL.library, fit.times=nuis$eval.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, survSL.control=nuis$survSL.control, survSL.cvControl = nuis$survSL.cvControl, save.fit = nuis$save.nuis.fits, verbose = nuis$verbose)
                 if(do.event.pred.0) nuis$event.pred.0[test,] <- surv.fit$event.pred.0
                 if(do.event.pred.1) nuis$event.pred.1[test,] <- surv.fit$event.pred.1
                 if(do.cens.pred.0) nuis$cens.pred.0[test,] <- surv.fit$cens.pred.0
@@ -270,7 +271,7 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
                 nuis$cens.coef[[v]] <- surv.fit$cens.coef
             }
         } else {
-            surv.fit <- .estimate.conditional.survival(Y=time, Delta=event, A=treat, W=confounders, newW=confounders, event.SL.library=nuis$event.SL.library, fit.times=nuis$eval.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, survSL.control=nuis$survSL.control, survSL.cvControl = nuis$survSL.cvControl, save.fit = nuis$save.nuis.fits,  verbose = FALSE)
+            surv.fit <- .estimate.conditional.survival(Y=time, Delta=event, A=treat, W=confounders, newW=confounders, event.SL.library=nuis$event.SL.library, fit.times=nuis$eval.times, fit.treat=fit.treat, cens.SL.library=nuis$cens.SL.library, survSL.control=nuis$survSL.control, survSL.cvControl = nuis$survSL.cvControl, save.fit = nuis$save.nuis.fits,  verbose = nuis$verbose)
             if(do.event.pred.0) nuis$event.pred.0 <- surv.fit$event.pred.0
             if(do.event.pred.1) nuis$event.pred.1 <- surv.fit$event.pred.1
             if(do.cens.pred.0) nuis$cens.pred.0 <- surv.fit$cens.pred.0
@@ -410,14 +411,15 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = ifelse(cross.fit, 
                                         event.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "survscreen.glmnet", "survscreen.marg", "All") ),  event.pred.0 = NULL, event.pred.1 = NULL,
                                         cens.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg", "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg) c(alg, "survscreen.glmnet", "survscreen.marg", "All") ),  cens.pred.0 = NULL, cens.pred.1 = NULL,
                                         survSL.control = list(initWeightAlg = "survSL.rfsrc", verbose=FALSE), survSL.cvControl = list(V = 10), save.nuis.fits = FALSE,
-                                        prop.SL.library = lapply(c("SL.mean", "SL.glm", "SL.gam", "SL.earth", "SL.ranger", "SL.xgboost"), function(alg) c(alg, "screen.glmnet", "screen.corRank", "All") ), prop.pred = NULL) {
+                                        prop.SL.library = lapply(c("SL.mean", "SL.glm", "SL.gam", "SL.earth", "SL.ranger", "SL.xgboost"), function(alg) c(alg, "screen.glmnet", "screen.corRank", "All") ), prop.pred = NULL,
+                                        verbose=FALSE) {
     list(cross.fit = cross.fit, V = V, folds = folds, eval.times = eval.times,
          event.SL.library = event.SL.library, event.pred.0 = event.pred.0, event.pred.1 = event.pred.1,
          cens.SL.library = cens.SL.library, cens.pred.0 = cens.pred.0, cens.pred.1 = cens.pred.1,
          survSL.control = survSL.control,
          survSL.cvControl = survSL.cvControl,
          save.nuis.fits = save.nuis.fits,
-         prop.SL.library = prop.SL.library,  prop.pred = prop.pred)
+         prop.SL.library = prop.SL.library,  prop.pred = prop.pred, verbose=verbose)
 }
 
 .check.input <- function(time, event, treat, confounders, fit.times, fit.treat, nuisance.options, conf.band, conf.level, contrasts, verbose, ...) {
