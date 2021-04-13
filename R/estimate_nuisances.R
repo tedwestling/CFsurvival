@@ -1,4 +1,4 @@
-.estimate.conditional.survival <- function(Y, Delta, A, W, newW, fit.times, fit.treat, event.SL.library, cens.SL.library, survSL.control, survSL.cvControl, verbose, save.fit) {
+.estimate.conditional.survival <- function(Y, Delta, A, W, newW, fit.times, fit.treat, event.SL.library, cens.SL.library, survSL.control, survSL.cvControl, cens.trunc, verbose, save.fit) {
     ret <- list(fit.times=fit.times)
     AW <- cbind(A, W)
     if(0 %in% fit.treat & 1 %in% fit.treat) {
@@ -16,18 +16,21 @@
         ret$event.pred.0 <- fit$event.SL.predict[1:nrow(newW),]
         if(any(ret$event.pred.0 == 0)) ret$event.pred.0[ret$event.pred.0 == 0] <- min(ret$event.pred.0[ret$event.pred.0 > 0])
         ret$cens.pred.0 <- fit$cens.SL.predict[1:nrow(newW),]
+        ret$cens.pred.0 <- pmax(ret$cens.pred.0, cens.trunc)
         if(any(ret$cens.pred.0 == 0)) ret$cens.pred.0[ret$cens.pred.0 == 0] <- min(ret$cens.pred.0[ret$cens.pred.0 > 0])
         if(1 %in% fit.treat) {
             ret$event.pred.1 <- fit$event.SL.predict[-(1:nrow(newW)),]
             if(any(ret$event.pred.1 == 0)) ret$event.pred.1[ret$event.pred.1 == 0] <- min(ret$event.pred.1[ret$event.pred.1 > 0])
 
             ret$cens.pred.1 <- fit$cens.SL.predict[-(1:nrow(newW)),]
+            ret$cens.pred.1 <- pmax(ret$cens.pred.1, cens.trunc)
             if(any(ret$cens.pred.1 == 0)) ret$cens.pred.1[ret$cens.pred.1 == 0] <- min(ret$cens.pred.1[ret$cens.pred.1 > 0])
         }
     } else {
         ret$event.pred.1 <- fit$event.SL.predict
         if(any(ret$event.pred.1 == 0)) ret$event.pred.1[ret$event.pred.1 == 0] <- min(ret$event.pred.1[ret$event.pred.1 > 0])
         ret$cens.pred.1 <- fit$cens.SL.predict
+        ret$cens.pred.1 <- pmax(ret$cens.pred.1, cens.trunc)
         if(any(ret$cens.pred.1 == 0)) ret$cens.pred.1[ret$cens.pred.1 == 0] <- min(ret$cens.pred.1[ret$cens.pred.1 > 0])
     }
     ret$event.coef <- fit$event.coef
@@ -35,7 +38,7 @@
     return(ret)
 }
 
-.estimate.propensity <- function(A, W, newW, SL.library, save.fit, verbose) {
+.estimate.propensity <- function(A, W, newW, SL.library, fit.treat, prop.trunc, save.fit, verbose) {
     ret <- list()
     library(SuperLearner)
     if (length(SL.library) == 1) {
@@ -57,5 +60,7 @@
         ret$prop.pred <- c(prop.fit$SL.predict)
         if(save.fit) ret$prop.fit <- prop.fit
     }
+    if(1 %in% fit.treat) ret$prop.pred <- pmax(ret$prop.pred, prop.trunc)
+    if(0 %in% fit.treat) ret$prop.pred <- pmin(ret$prop.pred, 1-prop.trunc)
     return(ret)
 }
