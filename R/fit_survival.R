@@ -548,31 +548,41 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = ifelse(cross.fit, 
     # Isotonized intervals and bands
     out <- NULL
     if(conf.band) {
-        unif.vals <- .estimate.uniform.quantile(IF.vals[,!is.na(res$se)], conf.level, scale = FALSE)
-        unif.quant <- unif.vals$quantile
-        out$ew.sim.maxes <- unif.vals$maxes
-        out$unif.ew.quant <- unif.quant
-        res$unif.ew.lower <- pmax(est - unif.quant / sqrt(n), 0)
-        res$unif.ew.upper <- pmin(est + unif.quant / sqrt(n), 1)
+        if(any(!is.na(res$se))) {
+            unif.vals <- .estimate.uniform.quantile(IF.vals[,!is.na(res$se), drop=FALSE], conf.level, scale = FALSE)
+            unif.quant <- unif.vals$quantile
+            out$ew.sim.maxes <- unif.vals$maxes
+            out$unif.ew.quant <- unif.quant
+            res$unif.ew.lower <- pmax(est - unif.quant / sqrt(n), 0)
+            res$unif.ew.upper <- pmin(est + unif.quant / sqrt(n), 1)
 
-        if(isotonize) {
-            res$unif.ew.lower[!is.na(res$unif.ew.lower)] <- 1 - isoreg(times[!is.na(res$unif.ew.lower)], 1-res$unif.ew.lower[!is.na(res$unif.ew.lower)])$yf
-            res$unif.ew.upper[!is.na(res$unif.ew.upper)] <- 1 - isoreg(times[!is.na(res$unif.ew.upper)], 1-res$unif.ew.upper[!is.na(res$unif.ew.upper)])$yf
+            if(isotonize) {
+                res$unif.ew.lower[!is.na(res$unif.ew.lower)] <- 1 - isoreg(times[!is.na(res$unif.ew.lower)], 1-res$unif.ew.lower[!is.na(res$unif.ew.lower)])$yf
+                res$unif.ew.upper[!is.na(res$unif.ew.upper)] <- 1 - isoreg(times[!is.na(res$unif.ew.upper)], 1-res$unif.ew.upper[!is.na(res$unif.ew.upper)])$yf
+            }
+        } else {
+            res$unif.ew.lower <- rep(NA, length(res$se))
+            res$unif.ew.upper <- rep(NA, length(res$se))
         }
 
-        unif.logit.vals <- .estimate.uniform.quantile(IF.vals.logit[,!is.na(res$se.logit) & times >= band.end.pts[1] & times <= band.end.pts[2]], conf.level)
-        unif.logit.quant <- unif.logit.vals$quantile
-        out$logit.sim.maxes <- unif.logit.vals$maxes
-        out$unif.logit.quant <- unif.logit.quant
-        res$unif.logit.lower <- expit(logit(est) - unif.logit.quant * res$se.logit) #pmax(est - unif.quant * res$se, 0)
-        res$unif.logit.upper <- expit(logit(est) + unif.logit.quant * res$se.logit) # pmin(est + unif.quant * res$se, 1)
-        res$unif.logit.lower[times < band.end.pts[1] | times > band.end.pts[2]] <- NA
-        res$unif.logit.upper[times < band.end.pts[1] | times > band.end.pts[2]] <- NA
-        # res$unif.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
-        # res$unif.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
-        if(isotonize) {
-            res$unif.logit.lower[!is.na(res$unif.logit.lower)] <- 1 - isoreg(times[!is.na(res$unif.logit.lower)], 1-res$unif.logit.lower[!is.na(res$unif.logit.lower)])$yf
-            res$unif.logit.upper[!is.na(res$unif.logit.upper)] <- 1 - isoreg(times[!is.na(res$unif.logit.upper)], 1-res$unif.logit.upper[!is.na(res$unif.logit.upper)])$yf
+        if(any(!is.na(res$se.logit) & times >= band.end.pts[1] & times <= band.end.pts[2]))  {
+            unif.logit.vals <- .estimate.uniform.quantile(IF.vals.logit[,!is.na(res$se.logit) & times >= band.end.pts[1] & times <= band.end.pts[2], drop=FALSE], conf.level)
+            unif.logit.quant <- unif.logit.vals$quantile
+            out$logit.sim.maxes <- unif.logit.vals$maxes
+            out$unif.logit.quant <- unif.logit.quant
+            res$unif.logit.lower <- expit(logit(est) - unif.logit.quant * res$se.logit) #pmax(est - unif.quant * res$se, 0)
+            res$unif.logit.upper <- expit(logit(est) + unif.logit.quant * res$se.logit) # pmin(est + unif.quant * res$se, 1)
+            res$unif.logit.lower[times < band.end.pts[1] | times > band.end.pts[2]] <- NA
+            res$unif.logit.upper[times < band.end.pts[1] | times > band.end.pts[2]] <- NA
+            # res$unif.lower[!in.bounds] <- pmin(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+            # res$unif.upper[!in.bounds] <- pmax(approx(times[in.bounds], res$unif.lower[in.bounds], xout=times[!in.bounds], rule=2)$y, est[!in.bounds])
+            if(isotonize) {
+                res$unif.logit.lower[!is.na(res$unif.logit.lower)] <- 1 - isoreg(times[!is.na(res$unif.logit.lower)], 1-res$unif.logit.lower[!is.na(res$unif.logit.lower)])$yf
+                res$unif.logit.upper[!is.na(res$unif.logit.upper)] <- 1 - isoreg(times[!is.na(res$unif.logit.upper)], 1-res$unif.logit.upper[!is.na(res$unif.logit.upper)])$yf
+            }
+        } else {
+            res$unif.logit.lower <-  rep(NA, length(res$se))
+            res$unif.logit.upper <-  rep(NA, length(res$se))
         }
     }
     out$res <- res
@@ -580,6 +590,7 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = ifelse(cross.fit, 
 }
 
 .estimate.uniform.quantile <- function(IF.vals, conf.level=.95, scale=TRUE) {
+    IF.vals <- cbind(IF.vals)
     n <- nrow(IF.vals)
     if(scale) IF.vals <- scale(IF.vals)
     maxes <- replicate(1e4, max(abs(rbind(rt(n, df = n - 1)/sqrt(n)) %*% IF.vals)))
