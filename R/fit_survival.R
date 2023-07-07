@@ -20,16 +20,18 @@
 #' @param verbose Logical indicating whether progress should be printed to the command line.
 #' @return \code{CFsurvival} returns a named list with the following elements:
 #' \item{fit.times}{The time points at which the counterfactual survival curves (and contrasts) were fit.}
-#' \item{surv.df}{A data frame with the estimated counterfactual survival functions and CIs.}
+#' \item{fit.treat}{The treatment values for which the counterfactual survival curves were fit.}
+#' \item{surv.df}{A data frame with the estimated counterfactual survival functions, estimated standard errors, confidence interval (ptwise.lower/ptwise.upper is constructed on the survival scale, and ptwise.logit.lower/ptwise.logit.upper is constructed on the logit scale), confidence bands (unif.ew.lower/unif.ew.upper is an equal-width confidence band on the survival scale, and unif.logit.lower/unif.logit.upper is an equi-precision confidence band on the logit scale).}
 #' \item{IF.vals.0, IF.vals.1}{n x k matrices with the influence values for the counterfactual survival functions. Rows index observations, columns index time points.}
 #' \item{surv.diff.df}{A data frame with the estimated counterfactual survival difference (treatment survival minus control survival), as well as confidence intervals and tests of the null hypothesis that the difference equals zero. Only returned if \code{surv.diffs=TRUE}.}
 #' \item{surv.ratio.df}{A data frame with the estimated counterfactual survival ratio (treatment survival divided by control survival), as well as confidence intervals and tests of the null hypothesis that the ratio equals one. Note that standard errors and confidence intervals are first computed on the log scale, then exponentiated. Only returned if \code{surv.ratios=TRUE}.}
 #' \item{risk.ratio.df}{A data frame with the estimated counterfactual risk ratio (treatment risk divided by control risk), as well as confidence intervals and tests of the null hypothesis that the ratio equals one. Note that standard errors and confidence intervals are first computed on the log scale, then exponentiated. Only returned if \code{risk.ratios=TRUE}.}
 #' \item{nnt.df}{A data frame with the estimated counterfactual number needed to treat (one divided by the survival difference), as well as confidence intervals and tests of the null hypothesis that the ratio equals one. Note that standard errors and confidence intervals are first computed on the log scale, then exponentiated. Only returned if \code{nnt=TRUE}.}
-#' \item{surv.0.sim.maxes, surv.1.sim.maxes, surv.diff.}{Samples from the approximate distribution of the maximum of the limiting Gaussian processes of the counterfactual survival functions.}
-#' \item{prop.pred}{The estimated treatment propensities.}
-#' \item{event.pred.0, event.pred.1}{The estimated conditional survival functions of the event.}
-#' \item{cens.pred.0, censd.pred.1}{The estimated conditional survival functions of censoring.}
+#' \item{surv.0.unif.ew.sim.maxes, surv.0.logit.sim.maxes, surv.1.unif.ew.sim.maxes, surv.1.logit.sim.maxes}{Samples from the approximate distribution of the maximum of the limiting Gaussian processes of the counterfactual survival functions.}
+#' \item{surv.0.unif.ew.quant, surv.0.logit.quant, surv.1.unif.ew.quant, surv.1.logit.quant, surv.diff.unif.quant, log.risk.ratio.unif.quant, log.surv.ratio.unif.quant, nnt.unif.quant}{Estimated quantile of the approximate distribution of the maximum of the limiting Gaussian processes of the counterfactual survival functions or contrast function.}
+#' \item{prop.fits}{The estimated treatment propensities (if \code{surv.nuis.fits = TRUE}).}
+#' \item{surv.fits}{The estimated conditional survival functions (if \code{surv.nuis.fits = TRUE}).}
+#' \item{nuisance}{Predicted nuisance function values and details of the nuisance function fits.}
 #' \item{data}{The original time, event, and treatment data supplied to the function.}
 #' @details \code{surv.df$ptwise.lower} and \code{surv.df$ptwise.upper} are lower and upper endpoints of back-transformed pointwise confidence intervals on the logit scale. Pointwise confidence intervals are only provided for values of \code{fit.times} that are at least as large as the smallest observed event time in the corresponding treatment cohort. \code{surv.df$unif.ew.lower} and \code{surv.df$unif.ew.upper} are lower and upper endpoints of an equal-width confidence band. \code{surv.df$unif.logit.lower} and \code{surv.df$unif.logit.upper} are lower and upper endpoints of an equi-precision confidence band on the logit scale, and trasformed back to the survival scale. This confidence band only covers values of \code{fit.times} such that the corresponding estimated survival function is \code{<= .99} and \code{>= .01}.
 #' @examples
@@ -53,17 +55,17 @@
 #' obs.event <- as.numeric(event.time <= cens.time)
 #'
 #' # Estimate the CF survivals
-#' fit <- CFsurvival(time = obs.time, event = obs.event, treat = rx, confounders =  data.frame(covar), contrasts = NULL, verbose = TRUE, fit.times = seq(0, 14.5, by=.1), fit.treat = c(0,1),
+#' fit <- CFsurvival(time = obs.time, event = obs.event, treat = rx, confounders =  data.frame(covar), contrasts = c("surv.diff","surv.ratio", "risk.ratio","nnt"), verbose = TRUE, fit.times = seq(0, 14.5, by=.1), fit.treat = c(0,1),
 #' nuisance.options = list(prop.SL.library = c("SL.mean", "SL.bayesglm"),
 #'                        event.SL.library = c("survSL.km", "survSL.coxph", "survSL.weibreg", "survSL.expreg"),
-#'                        cens.SL.library = c("survSL.km", "survSL.coxph", "survSL.weibreg", "survSL.expreg"), #' cross.fit =TRUE, V = 5, save.nuis.fits = FALSE), conf.band = TRUE, conf.level = .95)
-
+#'                        cens.SL.library = c("survSL.km", "survSL.coxph", "survSL.weibreg", "survSL.expreg"),
+#'                        cross.fit =TRUE, V = 5, save.nuis.fits = TRUE), conf.band = TRUE, conf.level = .95)
 #' # It is a good idea to check the min/max of the propensity estimates and the min of the censoring estimates
 #' # If they are very small, there may be positivity violations, which may result in invalid inference.
-#' min(fit$g.hats)
-#' max(fit$g.hats)
-#' min(fit$G.hats.0)
-#' min(fit$G.hats.1)
+#' min(fit$nuisance$prop.pred)
+#' max(fit$nuisance$prop.pred)
+#' min(fit$nuisance$cens.pred.0)
+#' min(fit$nuisance$cens.pred.1)
 #'
 #' # Plot the output
 #' \dontrun{
@@ -76,8 +78,8 @@
 #'     geom_step(aes(time, surv, color=as.factor(trt), group=trt)) +
 #'     geom_step(aes(time, ptwise.lower, color=as.factor(trt), group=trt), linetype=2) +
 #'     geom_step(aes(time, ptwise.upper, color=as.factor(trt), group=trt), linetype=2) +
-#'     geom_step(aes(time, unif.lower, color=as.factor(trt), group=trt), linetype=3) +
-#'     geom_step(aes(time, unif.upper, color=as.factor(trt), group=trt), linetype=3) +
+#'     geom_step(aes(time, unif.logit.lower, color=as.factor(trt), group=trt), linetype=3) +
+#'     geom_step(aes(time, unif.logit.upper, color=as.factor(trt), group=trt), linetype=3) +
 #'     scale_color_discrete("Treatment") +
 #'     xlab("Time") +
 #'     ylab("Survival") +
@@ -290,7 +292,10 @@ CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(ti
         result$IF.vals.0 <- surv.0$IF.vals
 
         q.01 <- quantile(time[event == 1 & treat == 0], .01)#min(fit.times[surv.0$surv <= .99])
-        q.99 <- max(fit.times[!is.na(surv.0$surv.iso) && surv.0$surv.iso >= .01])
+
+        q.99.inds <- !is.na(surv.0$surv.iso)
+        q.99.inds[q.99.inds &  surv.0$surv.iso < .01] <- FALSE
+        q.99 <- max(fit.times[q.99.inds])
         min.obs.time <- min(time[event == 1 & treat == 0])
 
         c.int <- .surv.confints(fit.times, surv.0$surv, surv.0$IF.vals, conf.band = conf.band, band.end.pts = c(q.01, q.99), conf.level=conf.level)
@@ -431,17 +436,25 @@ CFsurvival.nuisance.options <- function(cross.fit = TRUE, V = ifelse(cross.fit, 
     if(any(!(treat %in% c(0,1)))) stop("Treatment must be binary.")
     if(length(time) != length(event) | length(time) != length(treat)) stop("time, event, and treat must be n x 1 vectors")
     if(any(!(fit.treat %in% c(0,1)))) stop("fit.treat must be a subset of c(0,1).")
-    if(!is.null(nuisance.options$event.pred.1) && !all.equal(dim(nuisance.options$event.pred.1), c(length(time), length(nuisance.options$eval.times)))) {
-        stop("event.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
+    if(!is.null(nuisance.options$event.pred.1)) {
+        if(!all.equal(dim(nuisance.options$event.pred.1), c(length(time), length(nuisance.options$eval.times)))) {
+            stop("event.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
+        }
     }
-    if(!is.null(nuisance.options$event.pred.0) && !all.equal(dim(nuisance.options$event.pred.0), c(length(time), length(nuisance.options$eval.times)))) {
-        stop("event.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
+    if(!is.null(nuisance.options$event.pred.0)) {
+        if(!all.equal(dim(nuisance.options$event.pred.0), c(length(time), length(nuisance.options$eval.times)))) {
+            stop("event.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
+        }
     }
-    if(!is.null(nuisance.options$cens.pred.1) && !all.equal(dim(nuisance.options$cens.pred.1), c(length(time), length(nuisance.options$eval.times)))) {
-        stop("cens.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
+    if(!is.null(nuisance.options$cens.pred.1)) {
+        if(!all.equal(dim(nuisance.options$cens.pred.1), c(length(time), length(nuisance.options$eval.times)))) {
+            stop("cens.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
+        }
     }
-    if(!is.null(nuisance.options$cens.pred.0) && !all.equal(dim(nuisance.options$cens.pred.0), c(length(time), length(nuisance.options$eval.times)))) {
-        stop("cens.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
+    if(!is.null(nuisance.options$cens.pred.0)) {
+        if(!all.equal(dim(nuisance.options$cens.pred.0), c(length(time), length(nuisance.options$eval.times)))) {
+            stop("cens.pred must be an n x k matrix (n is number of observations, k is length of eval.times)")
+        }
     }
     if(is.null(nuisance.options$event.SL.library)) {
         if(0 %in% fit.treat & is.null(nuisance.options$event.pred.0)) {

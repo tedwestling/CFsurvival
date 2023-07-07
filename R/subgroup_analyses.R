@@ -54,8 +54,8 @@
 #'     geom_line(aes(time, surv, color=as.factor(trt), group=trt)) +
 #'     geom_line(aes(time, ptwise.lower, color=as.factor(trt), group=trt), linetype=2) +
 #'     geom_line(aes(time, ptwise.upper, color=as.factor(trt), group=trt), linetype=2) +
-#'     geom_line(aes(time, unif.lower, color=as.factor(trt), group=trt), linetype=3) +
-#'     geom_line(aes(time, unif.upper, color=as.factor(trt), group=trt), linetype=3) +
+#'     geom_line(aes(time, unif.logit.lower, color=as.factor(trt), group=trt), linetype=3) +
+#'     geom_line(aes(time, unif.logit.upper, color=as.factor(trt), group=trt), linetype=3) +
 #'     scale_color_discrete("Treatment") +
 #'     xlab("Time") +
 #'     ylab("Survival") +

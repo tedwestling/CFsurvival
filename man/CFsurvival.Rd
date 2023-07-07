@@ -44,16 +44,18 @@ CFsurvival(
 \value{
 \code{CFsurvival} returns a named list with the following elements:
 \item{fit.times}{The time points at which the counterfactual survival curves (and contrasts) were fit.}
-\item{surv.df}{A data frame with the estimated counterfactual survival functions and CIs.}
+\item{fit.treat}{The treatment values for which the counterfactual survival curves were fit.}
+\item{surv.df}{A data frame with the estimated counterfactual survival functions, estimated standard errors, confidence interval (ptwise.lower/ptwise.upper is constructed on the survival scale, and ptwise.logit.lower/ptwise.logit.upper is constructed on the logit scale), confidence bands (unif.ew.lower/unif.ew.upper is an equal-width confidence band on the survival scale, and unif.logit.lower/unif.logit.upper is an equi-precision confidence band on the logit scale).}
 \item{IF.vals.0, IF.vals.1}{n x k matrices with the influence values for the counterfactual survival functions. Rows index observations, columns index time points.}
 \item{surv.diff.df}{A data frame with the estimated counterfactual survival difference (treatment survival minus control survival), as well as confidence intervals and tests of the null hypothesis that the difference equals zero. Only returned if \code{surv.diffs=TRUE}.}
 \item{surv.ratio.df}{A data frame with the estimated counterfactual survival ratio (treatment survival divided by control survival), as well as confidence intervals and tests of the null hypothesis that the ratio equals one. Note that standard errors and confidence intervals are first computed on the log scale, then exponentiated. Only returned if \code{surv.ratios=TRUE}.}
 \item{risk.ratio.df}{A data frame with the estimated counterfactual risk ratio (treatment risk divided by control risk), as well as confidence intervals and tests of the null hypothesis that the ratio equals one. Note that standard errors and confidence intervals are first computed on the log scale, then exponentiated. Only returned if \code{risk.ratios=TRUE}.}
 \item{nnt.df}{A data frame with the estimated counterfactual number needed to treat (one divided by the survival difference), as well as confidence intervals and tests of the null hypothesis that the ratio equals one. Note that standard errors and confidence intervals are first computed on the log scale, then exponentiated. Only returned if \code{nnt=TRUE}.}
-\item{surv.0.sim.maxes, surv.1.sim.maxes, surv.diff.}{Samples from the approximate distribution of the maximum of the limiting Gaussian processes of the counterfactual survival functions.}
-\item{prop.pred}{The estimated treatment propensities.}
-\item{event.pred.0, event.pred.1}{The estimated conditional survival functions of the event.}
-\item{cens.pred.0, censd.pred.1}{The estimated conditional survival functions of censoring.}
+\item{surv.0.unif.ew.sim.maxes, surv.0.logit.sim.maxes, surv.1.unif.ew.sim.maxes, surv.1.logit.sim.maxes}{Samples from the approximate distribution of the maximum of the limiting Gaussian processes of the counterfactual survival functions.}
+\item{surv.0.unif.ew.quant, surv.0.logit.quant, surv.1.unif.ew.quant, surv.1.logit.quant, surv.diff.unif.quant, log.risk.ratio.unif.quant, log.surv.ratio.unif.quant, nnt.unif.quant}{Estimated quantile of the approximate distribution of the maximum of the limiting Gaussian processes of the counterfactual survival functions or contrast function.}
+\item{prop.fits}{The estimated treatment propensities (if \code{surv.nuis.fits = TRUE}).}
+\item{surv.fits}{The estimated conditional survival functions (if \code{surv.nuis.fits = TRUE}).}
+\item{nuisance}{Predicted nuisance function values and details of the nuisance function fits.}
 \item{data}{The original time, event, and treatment data supplied to the function.}
 }
 \description{
@@ -87,16 +89,17 @@ obs.time <- pmin(event.time, cens.time)
 obs.event <- as.numeric(event.time <= cens.time)
 
 # Estimate the CF survivals
-fit <- CFsurvival(time = obs.time, event = obs.event, treat = rx, confounders =  data.frame(covar), contrasts = NULL, verbose = TRUE, fit.times = seq(0, 14.5, by=.1), fit.treat = c(0,1),
+fit <- CFsurvival(time = obs.time, event = obs.event, treat = rx, confounders =  data.frame(covar), contrasts = c("surv.diff","surv.ratio", "risk.ratio","nnt"), verbose = TRUE, fit.times = seq(0, 14.5, by=.1), fit.treat = c(0,1),
 nuisance.options = list(prop.SL.library = c("SL.mean", "SL.bayesglm"),
                        event.SL.library = c("survSL.km", "survSL.coxph", "survSL.weibreg", "survSL.expreg"),
-                       cens.SL.library = c("survSL.km", "survSL.coxph", "survSL.weibreg", "survSL.expreg"), #' cross.fit =TRUE, V = 5, save.nuis.fits = FALSE), conf.band = TRUE, conf.level = .95)
+                       cens.SL.library = c("survSL.km", "survSL.coxph", "survSL.weibreg", "survSL.expreg"),
+                       cross.fit =TRUE, V = 5, save.nuis.fits = TRUE), conf.band = TRUE, conf.level = .95)
 # It is a good idea to check the min/max of the propensity estimates and the min of the censoring estimates
 # If they are very small, there may be positivity violations, which may result in invalid inference.
-min(fit$g.hats)
-max(fit$g.hats)
-min(fit$G.hats.0)
-min(fit$G.hats.1)
+min(fit$nuisance$prop.pred)
+max(fit$nuisance$prop.pred)
+min(fit$nuisance$cens.pred.0)
+min(fit$nuisance$cens.pred.1)
 
 # Plot the output
 \dontrun{
@@ -109,8 +112,8 @@ ggplot(fit$surv.df) +
     geom_step(aes(time, surv, color=as.factor(trt), group=trt)) +
     geom_step(aes(time, ptwise.lower, color=as.factor(trt), group=trt), linetype=2) +
     geom_step(aes(time, ptwise.upper, color=as.factor(trt), group=trt), linetype=2) +
-    geom_step(aes(time, unif.lower, color=as.factor(trt), group=trt), linetype=3) +
-    geom_step(aes(time, unif.upper, color=as.factor(trt), group=trt), linetype=3) +
+    geom_step(aes(time, unif.logit.lower, color=as.factor(trt), group=trt), linetype=3) +
+    geom_step(aes(time, unif.logit.upper, color=as.factor(trt), group=trt), linetype=3) +
     scale_color_discrete("Treatment") +
     xlab("Time") +
     ylab("Survival") +

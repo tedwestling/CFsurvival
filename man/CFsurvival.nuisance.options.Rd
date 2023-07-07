@@ -17,14 +17,17 @@ CFsurvival.nuisance.options(
   cens.SL.library = lapply(c("survSL.km", "survSL.coxph", "survSL.expreg",
     "survSL.weibreg", "survSL.loglogreg", "survSL.gam", "survSL.rfsrc"), function(alg)
     c(alg, "survscreen.glmnet", "survscreen.marg", "All")),
+  cens.trunc = 0,
   cens.pred.0 = NULL,
   cens.pred.1 = NULL,
-  survSL.control = list(initWeightAlg = "survSL.rfsrc"),
+  survSL.control = list(initWeightAlg = "survSL.rfsrc", verbose = FALSE),
   survSL.cvControl = list(V = 10),
   save.nuis.fits = FALSE,
   prop.SL.library = lapply(c("SL.mean", "SL.glm", "SL.gam", "SL.earth", "SL.ranger",
     "SL.xgboost"), function(alg) c(alg, "screen.glmnet", "screen.corRank", "All")),
-  prop.pred = NULL
+  prop.trunc = 0,
+  prop.pred = NULL,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -44,6 +47,8 @@ CFsurvival.nuisance.options(
 
 \item{cens.SL.library}{The library of candidate learners to estimate the conditional survival of censoring. As with \code{event.SL.library}, single learners can be specified. Defaults to a full library with screening and all algorithms currently implemented in \code{survSuperLearner}. If \code{cens.SL.library = NULL}, then \code{cens.pred.0} and/or \code{cens.pred.1} must be specified.}
 
+\item{cens.trunc}{Optional lower truncation for censoring probabilities. Any estimated probabilities less than \code{cens.trunc} will be set to \code{cens.trunc}. Defaults to zero, i.e. no truncation.}
+
 \item{cens.pred.0}{Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 0 and confounders. If \code{cens.SL.library = NULL} and \code{0 \%in\% fit.treat}, then \code{cens.pred.0} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.0 } is ignored.}
 
 \item{cens.pred.1}{Optional \code{n x k} matrix of estimates of the conditional survival of censoring given treatment = 1 and confounders. If \code{cens.SL.library = NULL} and \code{1 \%in\% fit.treat}, then \code{cens.pred.1} must be specified. If \code{cens.SL.library} is not \code{NULL}, then \code{cens.pred.1} is ignored.}
@@ -55,6 +60,8 @@ CFsurvival.nuisance.options(
 \item{save.nuis.fits}{Logical indicating whether to save the fitted nuisance objects.}
 
 \item{prop.SL.library}{The library to use for estimation of the treatment propensities using \code{\link[SuperLearner]{SuperLearner}}. If only a single learner is provided(e.g. \code{SL.mean} for marginal mean, \code{SL.glm} for logistic regression, or \code{SL.ranger} for random forest), then just this learner will be used, and no super learning will be performed. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be provided.}
+
+\item{prop.trunc}{Optional lower truncation for propensities. If 0 is in \code{fit.treat}, then any estimated propensities greater than \code{1-prop.trunc} will be set to \code{1-prop.trunc}. If 1 is in \code{fit.treat}, then any estimated propensities less than \code{prop.trunc} will be set to \code{prop.trunc}. Defaults to zero, i.e. no truncation.}
 
 \item{prop.pred}{Optional \code{n x 1} numeric vector of estimated probabilities that \code{treat = 1} given the confounders. If \code{prop.SL.library = NULL}, then \code{prop.pred} must be specified, otherwise it is ignored.}
 }
