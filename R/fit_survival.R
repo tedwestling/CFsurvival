@@ -139,7 +139,7 @@
 #'     ylab("Number needed to treat (NNT)")}
 
 
-CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(time[time > 0 & time < max(time[event == 1])])), fit.treat=c(0,1), nuisance.options = list(), conf.band=TRUE, conf.level=.95, contrasts = c("surv.diff", "surv.ratio"), verbose=FALSE) {
+CFsurvival <- function(time, event, treat, confounders, fit.times=sort(unique(time[time > 0 & time <= max(time[event == 1])])), fit.treat=c(0,1), nuisance.options = list(), conf.band=TRUE, conf.level=.95, contrasts = c("surv.diff", "surv.ratio"), verbose=FALSE) {
     .args <- mget(names(formals()), sys.frame(sys.nframe()))
 
     # if(is.null(contrasts)) contrasts <- c("surv.diff", "surv.ratio")
